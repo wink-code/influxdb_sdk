@@ -1,0 +1,66 @@
+version: '3.8'  # 兼容 Docker 版本 >=18.06
+
+# 自定义网络（自动创建，所有服务默认加入）
+networks:
+  dev-network:
+    driver: bridge  # 桥接网络，支持容器名称 DNS 解析
+
+services:
+  # 1. Python 开发容器（Dev Container）
+  dev-container:
+    # 基础镜像（与原 devcontainer.json 一致，如 Python 3.11）
+    image: mcr.microsoft.com/devcontainers/python:3.13-bullseye
+    # 容器名称（可选，方便识别）
+    container_name: python-dev-container
+    # 加入自定义网络
+    networks:
+      - dev-network
+    # 挂载项目目录到容器内（关键：让容器访问你的代码）
+    volumes:
+      - .:/workspace:cached  # 项目根目录挂载到容器的 /workspace（VS Code 工作目录）
+    # 环境变量（可选，如 Python 路径、时区等）
+    environment:
+      - PYTHONPATH=/workspace/src:${PYTHONPATH}  # 让 Python 识别 src 目录
+      - TZ=Asia/Shanghai  # 统一时区
+    # 特权模式（可选，解决部分文件权限问题）
+    privileged: true
+    # 保持容器运行（VS Code 会通过此容器启动终端）
+    command: sleep infinity
+
+  # 2. InfluxDB 容器
+  influxdb:
+    # 官方镜像（推荐用 2.x 版本，支持 API 密钥认证）
+    image: influxdb:2.7-alpine  # alpine 镜像更小，适合开发环境
+    # 容器名称（Python 代码中用此名称访问）
+    container_name: influxdb-dev
+    # 加入自定义网络（与 Dev Container 同网）
+    networks:
+      - dev-network
+    # 端口映射（宿主机端口:容器端口）
+    ports:
+      - "9000:8086"  # InfluxDB 核心 API 端口（必须映射，开发时用）
+      - "9001:8088"  # 备份/恢复端口（可选）
+    # 数据持久化（避免容器删除后数据丢失）
+    volumes:
+      - influxdb-data:/var/lib/influxdb2  # 挂载 InfluxDB 数据目录
+      - influxdb-config:/etc/influxdb2    # 挂载配置目录
+    # 环境变量（初始化 InfluxDB，避免手动配置）
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup  # 启动时自动初始化
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME}  # 默认用户名（可修改）
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}  # 默认密码（开发环境用，生产环境需复杂密码）
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}  # 初始化组织名称（可修改）
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}  # 初始化存储桶（可修改）
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}  # 管理员令牌（Python 连接用）
+      - TZ=Asia/Shanghai
+    # 健康检查（确保 InfluxDB 启动完成后再让 Dev Container 访问）
+    healthcheck:
+      test: ["CMD", "influx", "ping", "--host", "http://localhost:8086"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+# 定义数据卷（持久化 InfluxDB 数据）
+volumes:
+  influxdb-data:
+  influxdb-config:
