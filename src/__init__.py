@@ -73,7 +73,7 @@ class InfluxDBSDK(InfluxDBClient):
         qeury_client = self.query_api
 
         if flux_script:
-            results = qeury_client.query_data_frame(query_flux,data_flame_index=['_time','_measurement','_field','_value'])
+            results = qeury_client.query_data_frame(flux_script,data_flame_index=['_time','_measurement','_field','_value'])
             return results
         
         query_list = [f'from (bucket:"{bucket}")',f'range(start:{start},stop:{stop})']
@@ -82,8 +82,8 @@ class InfluxDBSDK(InfluxDBClient):
         if aggregateWindow:
             query_list.append(f'aggregateWindow(every:{aggregateWindow["every"]},fn:{aggregateWindow["fn"]},createEmpty:{aggregateWindow["createEmpty"]})')
         if pivot:
-            m = f'pivot(rowKey:"{pivot["rowKey"]}",columnKey:"{pivot["columnKey"]}",columnValues:[{pivot["columnValues"]}])'
-            m.replace('\.','"')
+            m = f'pivot(rowKey:{pivot["rowKey"]},columnKey:{pivot["columnKey"]},valueColumn:"{pivot["valueColumn"]}")'
+            m = m.replace('\'','"')
             query_list.append(m)
         query = '\n|>'.join(query_list)
         print(query)
