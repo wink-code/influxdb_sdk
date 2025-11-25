@@ -1,11 +1,10 @@
 from influxdb_client import InfluxDBClient
 from influxdb_client.rest import ApiException
-import os
-from typing import Optional,Dict,List,Literal
+from typing import Optional,Dict,List,Literal,Any
 import requests
-from .models.flux_obj import AggregateWindowDict, PivotDict
+from src.models.flux_obj import AggregateWindowDict, PivotDict
 
-
+__all__ = ["InfluxDBSDK"]
 class InfluxDBSDK(InfluxDBClient):
     def __init__(
             self,
@@ -60,6 +59,7 @@ class InfluxDBSDK(InfluxDBClient):
             filters:Optional[Dict[str,str]]=None,
             aggregateWindow:Optional[AggregateWindowDict]=None,
             pivot:Optional[PivotDict]=None,
+            data_frmae_index:List[str]=None,
             flux_script:str=None
             ):
         """
@@ -70,7 +70,7 @@ class InfluxDBSDK(InfluxDBClient):
         :param aggregateWindow: dict that must obey the format as "{"every":"3s", "fn":"mean","createEmpty":"true"}"
         :prama flux_script: has the prioriry above other parameters, if it is None, then function execute the flux script to query.
         """
-        qeury_client = self.query_api
+        qeury_client = self.query_api()
 
         if flux_script:
             results = qeury_client.query_data_frame(flux_script,data_flame_index=['_time','_measurement','_field','_value'])
@@ -86,9 +86,118 @@ class InfluxDBSDK(InfluxDBClient):
             m = m.replace('\'','"')
             query_list.append(m)
         query = '\n|>'.join(query_list)
-        print(query)
+        # print(query)
+        try:
+            if data_frmae_index:
+                results = qeury_client.query_data_frame(query, data_frame_index=data_frmae_index)
+            else:
+                results = qeury_client.query_data_frame(query, data_frame_index=['_time','_measurement','_field','_value'])
+        except ApiException as e:
+            if e.status == 401:
+                raise RuntimeError(f"Invalid or missing InfluxDB token. Error message:{e.body}") from e
+            elif e.status == 403:
+                raise RuntimeError(f"Token does not have permission to query the bucket. Error message:{e.body}") from e
+            elif e.status == 404:
+                raise RuntimeError(f"Bucket or measurement not found.{e.body}") from e
+        else:
+            return results
+        
 
-                
+    def get_meta_data(self,obj:Literal["buckets","measurements","tag_keys","tag_values","fields"],context:Optional[Dict]=None)-> List[Dict[str,Any]]:
+        """
+        Get InfluxDB metadata(such as buckets, measurements, tags, fields)
+        
+        : param obj: metadata type(buckets/measurements/tags/fields)
+        : param context: context parameters(for example, it is needed for bucket and measuremet to select tags)
+        : return: metadata list
+        """
+        # factory model
+        handlers = {
+            "buckets": self._get_buckets,
+            "measurements": self._get_measurements,
+            "tag_keys": self._get_tag_keys,
+            "tag_values":self._get_tag_values,
+            "fields": self._get_fields
+        }
+
+        handler = handlers.get(obj)
+        if not handler:
+            raise ValueError(f"data type not supported:{obj}, supporting data list:{list(handlers.keys())}")
+        try:
+            return handler(context)
+        except ApiException as e:
+            raise #
+        except Exception as e:
+            raise RuntimeError(f"获取{obj}时发生错误：{str(e)}") from e
+    
+    def _get_buckets(self, context:Optional[Dict]=None)-> List[Dict[str,Any]]:
+        """获取所有buckets(context为空)"""
+        flux_script = f'''
+            buckets()
+            |>keep(columns:["name"])
+        '''
+        return self.query(flux_script=flux_script)
+    
+    def _get_measurements(self, context:Optional[Dict]=None)-> List[Dict[str,Any]]:
+        bucket = context.get('bucket')
+        if not bucket:
+            raise RuntimeError("bucket parameter is required.")
+        flux_script = f'''
+            import "influxdata/influxdb/schema"
+            schema.measurements(bucket:"{bucket}")
+        '''
+        return self.query(flux_script=flux_script)
+        # return flux_script
+    
+    def _get_tag_keys(self, context:Optional[Dict]=None):
+        bucket = context.get('bucket')
+        measurement = context.get('measurement')
+        flux_script = f'''
+            import "influxdata/influxdb/schema"
+            schema.tagKeys(bucket:"{bucket}{f', predicate: (r)=> r._measurement == "{measurement}"' if measurement else ''})
+        '''
+        return self.query(flux_script=flux_script)
+        # return flux_script
+    
+    def _get_tag_values(self,context:Optional[Dict]=None):
+        bucket = context.get('bucket')
+        measurement = context.get('measurement')
+        try:
+            tag_key = context["tag_key"]
+        except KeyError:
+            raise RuntimeError(f"tag_key is required.")
+        flux_script = f'''
+            import "influxdata/influxdb/schema"
+            schema.tagValues(bucket:"{bucket}", tag:"{tag_key}"{f', predicate: (r)=> r._measurement == "{measurement}"' if measurement else ''})
+        '''
+        # return self.query(flux_script=flux_script)
+        return flux_script
+    
+    def _get_fields(self, context:Optional[Dict]):
+        bucket = context.get('bucket')
+        measurement = context.get('measurement')
+        tags: Dict = context.get('tags')
+        predicate_list = []
+        if measurement:
+            predicate_list.append( f'r._measurement == "{measurement}"')
+        if tags:
+            predicate_tags = ' or '.join(f'{tag_key}=={tag_value}' for tag_key, tag_value in tags.items())
+            predicate_list.append(predicate_tags)
+        predicate = ','+' and '.join(predicate_list)
+        flux_script = f'''
+            import "influxdata/influxdb/schema"
+            schema.fieldKeys(bucket:"{bucket}"{predicate})
+        '''
+        # return self.query(flux_script=flux_script)
+
+    @classmethod
+    def from_config_file(cls, config_file = "config.ini", debug=None, enable_gzip=False, **kwargs):
+        parent_instance = super().from_config_file(config_file, debug, enable_gzip, **kwargs)
+        url = parent_instance.url
+        token = parent_instance.token
+        org = parent_instance.org
+        return cls(url=url,token=token,org=org,**kwargs)
+        
 def _generate_filters(
             filters:Dict[str,str|List[str]], 
             )->str:
@@ -111,3 +220,5 @@ def _generate_filters(
             filter_conditions.append(f'r.{key} == {value}')
     
     return '\n|>'.join(filter_conditions)
+
+
