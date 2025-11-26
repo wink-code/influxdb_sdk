@@ -1,4 +1,4 @@
-from src import _generate_filters
+from src.influxdb import _generate_filters
 
 
 # filter_dict = {'_measurement':'temperatures in rooms','location':'room1','_field':'temperature'}

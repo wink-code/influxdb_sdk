@@ -1,4 +1,4 @@
-from src import InfluxDBSDK
+from src.influxdb import InfluxDBSDK
 import os
 import sys
 # print(sys.path)
@@ -6,13 +6,14 @@ print(__file__)
 config_path = "influxdb-client.toml"
 os.chdir(os.path.dirname(os.path.abspath((__file__))))
 # print(os.getcwd())
-print(os.path.exists(config_path))
+# print(os.path.exists(config_path))
 try:
     influxdbsdk = InfluxDBSDK.from_config_file(config_path)
 except Exception as e:
     print(f"Exception, <{type(e).__name__}> {str(e)}")
 else:
     print('客户端配置成功！')
+    print(f'{influxdbsdk.org}')
 finally:
     influxdbsdk.close()
 # with InfluxDBSDK.from_config_file(config_path) as client:

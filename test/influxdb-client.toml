@@ -1,4 +1,4 @@
 [influx2]
     url = "http://influxdb-dev:8086"
-    token = "IA7BWjt5rKftZw-yM1UrAcEjfGhmB7SDau8Um_egNKqspLHZdtfbEA0aplH2CiNixSH_wrgGFfK8rkY_EzvdzQ=="
+    token = "k94vicLzrEjsPqqxvd1eeD9uoWA-CXoNdVlczQjjvhGWebuavQ1pd2NeDom-ClY2cpXy8_z-1FtbKjdIjaxyEQ=="
     org = "DFMC"

@@ -1,4 +1,4 @@
-from src import InfluxDBSDK
+from src.influxdb import InfluxDBSDK
 import os
 from src.models.flux_obj import PivotDict
 # print(os.getcwd())
