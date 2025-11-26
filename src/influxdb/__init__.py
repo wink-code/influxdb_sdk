@@ -6,11 +6,14 @@ from src.models.flux_obj import AggregateWindowDict, PivotDict
 import tomllib
 from influxdb_client.client.write_api import PointSettings
 from src.influxdb.utils.generate_filters import generate_filters
+from pandas import DataFrame
+from src.influxdb.query import QueryProtocol, query_impl, query_df_impl
+from types import MethodType
 # from influxdb_client.client.write_api import WriteOptions
 
 
 __all__ = ["InfluxDBSDK"]
-class InfluxDBSDK(InfluxDBClient):
+class InfluxDBSDK(InfluxDBClient, QueryProtocol):
     def __init__(
             self,
             url:str='http://influxdb-dev:8086',
@@ -30,6 +33,12 @@ class InfluxDBSDK(InfluxDBClient):
             self._validate_auth()
         else:
             raise ValueError("Token and url are required!")
+        # self.query = query_impl.__get__(self, InfluxDBSDK)
+        # self.query_df = query_df_impl.__get__(self, InfluxDBClient)
+        self.query_df = MethodType(query_df_impl, self)
+        self.query = MethodType(query_impl, self)
+
+
     def _validate_auth(self):
         try:
             me = self.users_api().me()
@@ -66,7 +75,7 @@ class InfluxDBSDK(InfluxDBClient):
             pivot:Optional[PivotDict]=None,
             data_frame_index:List[str]=None,
             flux_script:str=None
-            ):
+            )->DataFrame:
         """
         :param bucket: bucket name
         :param start: start time of time range, default set as '-1h', here only support the relative time and absolute time formated as ISO 8601
@@ -75,38 +84,38 @@ class InfluxDBSDK(InfluxDBClient):
         :param aggregateWindow: dict that must obey the format as "{"every":"3s", "fn":"mean","createEmpty":"true"}"
         :param flux_script: has the prioriry above other parameters, if it is None, then function execute the flux script to query.
         """
-        query_client = self.query_api()
+        # query_client = self.query_api()
 
-        if flux_script:
-            results = query_client.query_data_frame(flux_script,data_frame_index=['_time','_measurement','_field','_value'])
-            return results
+        # if flux_script:
+        #     results = query_client.query_data_frame(flux_script,data_frame_index=['_time','_measurement','_field','_value'])
+        #     return results
         
-        query_list = [f'from (bucket:"{bucket}")',f'range(start:{start},stop:{stop})']
-        if filters:
-            query_list.append(generate_filters(filters))
-        if aggregateWindow:
-            query_list.append(f'aggregateWindow(every:{aggregateWindow["every"]},fn:{aggregateWindow["fn"]},createEmpty:{aggregateWindow["createEmpty"]})')
-        if pivot:
-            m = f'pivot(rowKey:{pivot["rowKey"]},columnKey:{pivot["columnKey"]},valueColumn:"{pivot["valueColumn"]}")'
-            m = m.replace('\'','"')
-            query_list.append(m)
-        query = '\n|>'.join(query_list)
-        # print(query)
-        try:
-            if data_frame_index:
-                results = query_client.query_data_frame(query, data_frame_index=data_frame_index)
-            else:
-                results = query_client.query_data_frame(query, data_frame_index=['_time','_measurement','_field','_value'])# TO TEST
-        except ApiException as e:
-            if e.status == 401:
-                raise RuntimeError(f"Invalid or missing InfluxDB token. Error message:{e.body}") from e
-            elif e.status == 403:
-                raise RuntimeError(f"Token does not have permission to query the bucket. Error message:{e.body}") from e
-            elif e.status == 404:
-                raise RuntimeError(f"Bucket or measurement not found.{e.body}") from e
-        else:
-            return results
-        
+        # query_list = [f'from (bucket:"{bucket}")',f'range(start:{start},stop:{stop})']
+        # if filters:
+        #     query_list.append(generate_filters(filters))
+        # if aggregateWindow:
+        #     query_list.append(f'aggregateWindow(every:{aggregateWindow["every"]},fn:{aggregateWindow["fn"]},createEmpty:{aggregateWindow["createEmpty"]})')
+        # if pivot:
+        #     m = f'pivot(rowKey:{pivot["rowKey"]},columnKey:{pivot["columnKey"]},valueColumn:"{pivot["valueColumn"]}")'
+        #     m = m.replace('\'','"')
+        #     query_list.append(m)
+        # query = '\n|>'.join(query_list)
+        # # print(query)
+        # try:
+        #     if data_frame_index:
+        #         results = query_client.query_data_frame(query, data_frame_index=data_frame_index)
+        #     else:
+        #         results = query_client.query_data_frame(query, data_frame_index=['_time','_measurement','_field','_value'])# TO TEST
+        # except ApiException as e:
+        #     if e.status == 401:
+        #         raise RuntimeError(f"Invalid or missing InfluxDB token. Error message:{e.body}") from e
+        #     elif e.status == 403:
+        #         raise RuntimeError(f"Token does not have permission to query the bucket. Error message:{e.body}") from e
+        #     elif e.status == 404:
+        #         raise RuntimeError(f"Bucket or measurement not found.{e.body}") from e
+        # else:
+        #     return results
+        raise NotImplementedError("方法实现已通过动态挂载注入")
 
     def query(
             self,
@@ -128,39 +137,41 @@ class InfluxDBSDK(InfluxDBClient):
         :param aggregateWindow: dict that must obey the format as "{"every":"3s", "fn":"mean","createEmpty":"true"}"
         :param flux_script: has the prioriry above other parameters, if it is None, then function execute the flux script to query.
         """
-        query_client = self.query_api()
+        # query_client = self.query_api()
 
-        if flux_script:
-            results = query_client.query(flux_script)
-            results_list = results.to_values(columns=columns)
-            return results_list
+        # if flux_script:
+        #     results = query_client.query(flux_script)
+        #     results_list = results.to_values(columns=columns)
+        #     return results_list
         
-        query_list = [f'from (bucket:"{bucket}")',f'range(start:{start},stop:{stop})']
-        if filters:
-            query_list.append(generate_filters(filters))
-        if aggregateWindow:
-            query_list.append(f'aggregateWindow(every:{aggregateWindow["every"]},fn:{aggregateWindow["fn"]},createEmpty:{aggregateWindow["createEmpty"]})')
-        if pivot:
-            m = f'pivot(rowKey:{pivot["rowKey"]},columnKey:{pivot["columnKey"]},valueColumn:"{pivot["valueColumn"]}")'
-            m = m.replace('\'','"')
-            query_list.append(m)
-        query = '\n|>'.join(query_list)
-        # print(query)
-        try:
-            if columns:
-                results = query_client.query(query,columns=columns)
-            else:
-                results = query_client.query(query,columns=["_time","_value"])
-        except ApiException as e:
-            if e.status == 401:
-                raise RuntimeError(f"Invalid or missing InfluxDB token. Error message:{e.body}") from e
-            elif e.status == 403:
-                raise RuntimeError(f"Token does not have permission to query the bucket. Error message:{e.body}") from e
-            elif e.status == 404:
-                raise RuntimeError(f"Bucket or measurement not found.{e.body}") from e
-        else:
-            results_list = results.to_values()
-            return results_list
+        # query_list = [f'from (bucket:"{bucket}")',f'range(start:{start},stop:{stop})']
+        # if filters:
+        #     query_list.append(generate_filters(filters))
+        # if aggregateWindow:
+        #     query_list.append(f'aggregateWindow(every:{aggregateWindow["every"]},fn:{aggregateWindow["fn"]},createEmpty:{aggregateWindow["createEmpty"]})')
+        # if pivot:
+        #     m = f'pivot(rowKey:{pivot["rowKey"]},columnKey:{pivot["columnKey"]},valueColumn:"{pivot["valueColumn"]}")'
+        #     m = m.replace('\'','"')
+        #     query_list.append(m)
+        # query = '\n|>'.join(query_list)
+        # # print(query)
+        # try:
+        #     if columns:
+        #         results = query_client.query(query,columns=columns)
+        #     else:
+        #         results = query_client.query(query,columns=["_time","_value"])
+        # except ApiException as e:
+        #     if e.status == 401:
+        #         raise RuntimeError(f"Invalid or missing InfluxDB token. Error message:{e.body}") from e
+        #     elif e.status == 403:
+        #         raise RuntimeError(f"Token does not have permission to query the bucket. Error message:{e.body}") from e
+        #     elif e.status == 404:
+        #         raise RuntimeError(f"Bucket or measurement not found.{e.body}") from e
+        # else:
+        #     results_list = results.to_values()
+        #     return results_list
+        raise NotImplementedError("方法实现已通过动态挂载注入")
+
 
     def get_meta_data(self,obj:Literal["buckets","measurements","tag_keys","tag_values","fields"],context:Optional[Dict]=None)-> List[Dict[str,Any]]:
         """

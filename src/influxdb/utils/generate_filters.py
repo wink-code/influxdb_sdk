@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 def generate_filters(
             filters:Dict[str,str|List[str]], 
             )->str:
