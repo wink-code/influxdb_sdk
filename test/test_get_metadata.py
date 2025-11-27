@@ -15,10 +15,13 @@ with InfluxDBSDK.from_config_file('influxdb-client.toml') as client:
     #         print(row)
 
     # tag_values = client.get_meta_data(obj="tag_values", context={"bucket":"temp","measurement":"rooms","tag_key":"location"})
+    # tag_values = client.get_meta_data(obj="tag_values", context={"bucket":"temp","measurement":"rooms","tag_key":"_field"})
+    # tag_values = client.get_meta_data(obj="tag_values", context={"bucket":"temp","measurement":"rooms","tag_key":"_measurement"})
+
     # print(tag_values)
 
-    field_keys = client.get_meta_data(obj='fields',context={"bucket":"temp","tags":{"location":"room1"}})
-    # field_keys = client.get_meta_data(obj='fields',context={"bucket":"temp","tags":{"location":["room1","room2"]},"measurement":"rooms"})
+    # field_keys = client.get_meta_data(obj='fields',context={"bucket":"temp","tags":{"location":"room1"}})
+    field_keys = client.get_meta_data(obj='fields',context={"bucket":"temp","tags":{"location":["room1","room2"]},"measurement":"rooms"})
     # field_keys = client.get_meta_data(obj='fields',context={})
 
     print(field_keys)

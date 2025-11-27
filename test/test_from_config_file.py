@@ -23,7 +23,7 @@ finally:
 #         print('ping 失败')
 
 
-# from src import InfluxDBSDK
+# from src.influxdb import InfluxDBSDK
 # import os
 # import sys
 
