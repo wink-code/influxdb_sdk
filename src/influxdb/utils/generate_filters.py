@@ -22,3 +22,7 @@ def generate_filters(
             filter_conditions.append(f'r.{key} == {value}')
     
     return '\n|>'.join(filter_conditions)
+
+
+def partial_join(main_part,ele_list,template):
+    

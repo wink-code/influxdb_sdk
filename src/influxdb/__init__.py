@@ -7,8 +7,8 @@ from influxdb_client import InfluxDBClient
 from influxdb_client.rest import ApiException
 from influxdb_client.client.write_api import PointSettings
 from pandas import DataFrame
-from src.models.flux_obj import AggregateWindowDict, PivotDict
-from src.influxdb.utils.generate_filters import generate_filters
+from src.influxdb.models.flux_obj import AggregateWindowDict, PivotDict
+# from src.influxdb.utils.generate_filters import generate_filters
 from src.influxdb.utils.chain import chain
 from src.influxdb.exceptions import InfluxDBError, AuthenticationError, EssentialElementsMissingError
 # from influxdb_client.client.write_api import WriteOptions
@@ -94,13 +94,14 @@ class InfluxDBSDK(InfluxDBClient):
         return cls(token=_token,**_client_config)
     
     def query_sdk(self):
-        ''' ''' # to fill the doc string
+        ''' return QuerySDK class object that support influx query. ''' # to fill the doc string
         from src.influxdb.query import QuerySDK
         return QuerySDK(self)
 
     def write_sdk(self):
         ''' return WriteSDK class that support influxdb write manipulations.''' # to code
-
+        from src.influxdb.write import WriteSDK
+        return WriteSDK(self)
     
 
 
