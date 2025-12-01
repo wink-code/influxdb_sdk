@@ -4,8 +4,7 @@ from pandas import DataFrame
 from dataclasses import dataclass
 from influxdb_client.rest import ApiException
 from src.influxdb import InfluxDBSDK
-from src.influxdb.models.flux_obj import AggregateWindowDict, PivotDict, Filter
-from src.influxdb.utils.generate_filters import generate_filters
+from src.influxdb.models.flux_obj import AggregateWindow, Pivot, Filter
 from src.influxdb.exceptions import AuthenticationError, EssentialElementsMissingError
 
 @dataclass
@@ -22,8 +21,8 @@ class FluxQuery:
     start: str = '-1h'
     stop: str = 'now()'
     filters: Filter = None
-    aggregate_window: AggregateWindowDict = None
-    pivot: PivotDict = None
+    aggregate_window: AggregateWindow = None
+    pivot: Pivot = None
 
     def set(self,obj,*args,**kwargs):
         '''''' # to do
@@ -43,11 +42,11 @@ class FluxQuery:
         self.filters = filters
         return self
     
-    def set_aggregate_window(self,aggregate_window):
+    def set_aggregate_window(self,aggregate_window: AggregateWindow):
         self.aggregate_window = aggregate_window
         return self
 
-    def set_pivot(self,pivot):
+    def set_pivot(self,pivot: Pivot):
         self.pivot = pivot
         return self
 
@@ -55,22 +54,20 @@ class FluxQuery:
 
         query_list = [f'from (bucket:"{self.bucket}")', f'range(start:{self.start},stop:{self.stop})',repr(self.filters)]
 
-        aggregateWindow = self.aggregate_window
-        if aggregateWindow:
-            query_list.append(f'aggregateWindow(every:{aggregateWindow["every"]},fn:{aggregateWindow["fn"]},createEmpty:{aggregateWindow["createEmpty"]})')
-        pivot = self.pivot
-        if pivot:
-            m = f'pivot(rowKey:{pivot["rowKey"]},columnKey:{pivot["columnKey"]},valueColumn:"{pivot["valueColumn"]}")'
-            m = m.replace('\'','"')
-            query_list.append(m)
+        if self.aggregate_window:
+            query_list.append(repr(self.aggregate_window))
+
+        if self.pivot:
+            query_list.append(repr(self.pivot))
         query = '\n|> '.join(query_list)
+
         return query
 
     def __str__(self):
         return (f'<class {self.__class__.__name__} object>'
                  f'\n- bucket:           [{self.bucket}]'
                  f'\n- range:            [start:{self.start},stop:{self.stop}]'
-                 f'\n- filter condtions: [\n\t\t{self.filters}]'
+                 f'\n- filter conditions: [\n\t\t{str(self.filters)}]'
                  f'\n- aggregateWindow:  [{self.aggregate_window}]'
                  f'\n- pivot:            [{'true' if self.pivot else 'false'}]')
 

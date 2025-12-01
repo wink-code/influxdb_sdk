@@ -1,5 +1,5 @@
 
-from typing import Literal, TypedDict, Literal, List, Dict
+from typing import Literal, Literal, List, Dict
 from dataclasses import dataclass
 
 
@@ -8,6 +8,10 @@ class Filter:
     measurement: str|List[str] = None
     tag: Dict[str,str] = None
     field: str|List[str] = None
+    ops: str = '=='
+    inner_joint: str = ' or '
+    joint: str = '\n|> '
+    template: str = 'filter(fn: (r)=>{0})'
 
 
     def set_measurement(self, measurement):
@@ -26,56 +30,77 @@ class Filter:
 
     def __str__(self):
         return ('<class Filter object>'
-                f'\n- measurement: [{self.measurement}]'
-                f'\n- tag:        [{self.tag}]'
-                f'\n- field:      [{self.field}]')
+                f'\n\t\t- measurement: [{self.measurement}]'
+                f'\n\t\t- tag:         [{self.tag}]'
+                f'\n\t\t- field:       [{self.field}]'
+                '\n\t\t      ')
 
     def __repr__(self):
         if not self:
-            return "filter(fn: (r)=> true)"
+            return self.template.format("true")
+
+        filter_conditions = map(lambda s: self.template.format(s), self.compile())
+
+        return self.joint.join(filter_conditions)
+
+    def compile(self)->List:
+        if not self:
+            return "true"
 
         filter_conditions = []
         
         if self.measurement:
             if isinstance(self.measurement, List):
-                measurement_statements = (f'r._measurement == "{measurement_name}"' for measurement_name in self.measurement)
-                filter_conditions.append(f'filter(fn: (r)=>{' or '.join(measurement_statements)})')
+                measurement_statements = (f'r._measurement {self.ops} "{measurement_name}"' for measurement_name in self.measurement)
+                filter_conditions.append(self.inner_joint.join(measurement_statements))
             elif isinstance(self.measurement, str):
-                filter_conditions.append(f'filter(fn: (r)=>r._measurement == "{self.measurement}")')
+                filter_conditions.append(f'r._measurement {self.ops} "{self.measurement}"')
         
         if self.tag:
             tag_statements = []
             for key, value in self.tag.items():
                 if isinstance(value, str):
-                    tag_statements.append(f'r.{key} == "{value}"')
+                    tag_statements.append(f'r.{key} {self.ops} "{value}"')
                 else:
-                    tag_statements.append(f'r.{key} == {value}')
-            filter_conditions.append(f'filter(fn: (r)=> {' or '.join(tag_statements)})')
+                    tag_statements.append(f'r.{key} {self.ops} {value}')
+            filter_conditions.append(self.inner_joint.join(tag_statements))
         
         if self.field:
             if isinstance(self.field, List):
-                field_statements = (f'r._field == "{key}"' for key in self.field)
-                filter_conditions.append(f'filter(fn:(r)=>{' or '.join(field_statements)})')
+                field_statements = (f'r._field {self.ops} "{key}"' for key in self.field)
+                filter_conditions.append(self.inner_joint.join(field_statements))
             elif isinsance(self.field, str):
-                filter_conditions.append(f'filter(fn: (r)=>r._field == "{self.field}")')
+                filter_conditions.append(f'r._field {self.ops} "{self.field}"')
 
-        return '\n|> '.join(filter_conditions)        
+        return filter_conditions
 
 
-class AggregateWindowDict(TypedDict):
+@dataclass
+class AggregateWindow:
     every: str
-    fn: Literal["mean","last","median"]
-    createEmpty: Literal["true","false"]
+    fn: Literal["mean","last","median"] = 'mean'
+    create_empty: Literal["true","false"] = 'false'
 
-class PivotDict(TypedDict):
-    rowKey: List[Literal["_time"]]
-    columnKey: List[Literal["_field"]]
+    def __repr__(self):
+        return f'AggregateWindow(every:{self.every},fn:{self.fn},createEmpty:{self.create_empty})'
+
+@dataclass
+class Pivot:
+    rowKey: List[Literal["_time"]]  # to extend
+    columnKey: List[str]
     valueColumn: Literal["_value"]
 
-if __name__ == "__main__":
-    def print_aggregatewindow(aggregatewindow:AggregateWindowDict):
-        print(aggregatewindow)
-    def print_pivot(pivot:PivotDict):
-        print(pivot)
-    print_aggregatewindow({"every":"3s","fn":"mean","createEmpty":"true"})
-    print_pivot({"rowKey":["_time"],"columnKey":["_field"],"valueColumn":"_value"})
+    def __repr__(self):
+        return ('pivot('
+        f'rowKey:[{','.join(map(lambda s: f'"{s}"', self.rowKey))}]),'
+        f'columnKey:[{','.join(map(lambda s: f'"{s}"', self.columnKey))}],'
+        f'valueColumn:"{self.valueColumn}")')
+
+
+
+class PredicateFilter(Filter):
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        self.joint = ' AND '
+        self.template = '{}'
+        self.ops = '='

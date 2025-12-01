@@ -7,10 +7,9 @@ from influxdb_client import InfluxDBClient
 from influxdb_client.rest import ApiException
 from influxdb_client.client.write_api import PointSettings
 from pandas import DataFrame
-from src.influxdb.models.flux_obj import AggregateWindowDict, PivotDict
-# from src.influxdb.utils.generate_filters import generate_filters
 from src.influxdb.utils.chain import chain
 from src.influxdb.exceptions import InfluxDBError, AuthenticationError, EssentialElementsMissingError
+from src.influxdb.models.flux_obj import PredicateFilter
 # from influxdb_client.client.write_api import WriteOptions
 
 
@@ -98,12 +97,34 @@ class InfluxDBSDK(InfluxDBClient):
         from src.influxdb.query import QuerySDK
         return QuerySDK(self)
 
-    def write_sdk(self):
+    def write_sdk(self,point_settings=None):
         ''' return WriteSDK class that support influxdb write manipulations.''' # to code
         from src.influxdb.write import WriteSDK
-        return WriteSDK(self)
+        return WriteSDK(self,point_settings=point_settings)
     
-
+    def delete(self, bucket:str, start:str, stop:str, predicate_filter: PredicateFilter):
+        ''' 
+        Delete the points that satisfy the conditions of parameters.
+        param str: bucket, the bucket where points will be deleted.
+        param str: start, start time of the deleted points, formation could be relative deltatime, like '-1h', or absolute deltatime, like '2025-11-30T12:00:00Z'.
+        param str: stop, stop time of the deleted points, formation is the same as the `start` parameter.
+        param PredicateFilter: predicate, is a self-defined class that is to organize the filtering conditions, in which you are expected to initialize the class object
+        like `predicate = PredicateFilter(measurement:str|list='your-bucket',tag:dict={'locatioin':'New York'},field:str|list=['temperature','humulity']).
+        '''
+        if not predicate_filter:
+            predicate = None
+        else:
+            predicate = repr(predicate_filter).replace('r.','')
+            # predicate = repr(predicate_filter)
+            print(predicate) # to delete, only test
+        try:
+            super().delete_api().delete(bucket=bucket, start=start, stop=stop, predicate=predicate)
+        except ApiException as e:
+            print(f"failed to delte:bucket{bucket},start:{start},stop:{stop}"
+                                f"\n              {predicate}"
+                                f"\n             error:{str(e)}")
+        else:
+            print(f'NO Errors! [Action: delete]')
 
 
 
