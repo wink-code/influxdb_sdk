@@ -94,7 +94,7 @@ class AggregateWindow:
     create_empty: Literal["true","false"] = 'false'
 
     def __repr__(self):
-        return f'AggregateWindow(every:{self.every},fn:{self.fn},createEmpty:{self.create_empty})'
+        return f'aggregateWindow(every:{self.every},fn:{self.fn},createEmpty:{self.create_empty})'
 
 @dataclass
 class Pivot:

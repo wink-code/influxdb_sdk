@@ -132,7 +132,13 @@ class QuerySDK:
             'fields': yield_fields_statement
         }
         yield_statement = obj_mapping[obj](bucket,**context)
-        print(yield_statement)
+        print(yield_statement) # to delete, just for test
+
+        complete_statement = _schema + yield_statement
+
+        ## execute the querying of metadata
+
+        return self.query(complete_statement)  # result here is just Flux Talbe List
 
 
 
