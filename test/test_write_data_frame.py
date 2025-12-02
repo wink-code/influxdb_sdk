@@ -13,6 +13,7 @@ print(needed_data_frame.head())
 
 needed_data_frame.index = needed_data_frame.index.floor('S')
 
+
 print(needed_data_frame.index)
 
 # print(needed_data_frame.iloc[:,2])

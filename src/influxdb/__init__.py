@@ -35,10 +35,6 @@ class InfluxDBSDK(InfluxDBClient):
         else:
             raise ValueError("Token and url are required!")
         
-        default_tags = kwargs.get("default_tags")
-        if default_tags:
-            for default_tag_key, default_tag_value in default_tags.items():  # TO TEST
-                PointSettings.add_default_tag(default_tag_key,default_tag_value)
 
 
     def _validate_auth(self):
@@ -85,9 +81,6 @@ class InfluxDBSDK(InfluxDBClient):
             if not _token:
                 raise RuntimeError(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
         
-        if default_tags:   # TO TEST
-            for default_tag_key, default_tag_value in default_tags.items():
-                PointSettings.add_default_tag(default_tag_key,default_tag_value)
         if _url:
             return cls(url=_url,token=_token,**_client_config)
         return cls(token=_token,**_client_config)
@@ -115,8 +108,7 @@ class InfluxDBSDK(InfluxDBClient):
             predicate = None
         else:
             predicate = repr(predicate_filter).replace('r.','')
-            # predicate = repr(predicate_filter)
-            print(predicate) # to delete, only test
+            # print(predicate) # to delete, only test
         try:
             super().delete_api().delete(bucket=bucket, start=start, stop=stop, predicate=predicate)
         except ApiException as e:

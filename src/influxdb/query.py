@@ -1,11 +1,15 @@
 # from src.influxdb import InfluxDBSDK
-from typing import Dict, List
+from typing import Dict, List, Literal
 from pandas import DataFrame
 from dataclasses import dataclass
 from influxdb_client.rest import ApiException
 from src.influxdb import InfluxDBSDK
 from src.influxdb.models.flux_obj import AggregateWindow, Pivot, Filter
 from src.influxdb.exceptions import AuthenticationError, EssentialElementsMissingError
+from src.influxdb.utils.yield_statements import (yield_measurements_statement,
+                                                 yield_tag_key_statement,
+                                                 yield_tag_value_statement,
+                                                 yield_fields_statement)
 
 @dataclass
 class FluxQuery:
@@ -89,7 +93,8 @@ class QuerySDK:
         if not flux_script:
             flux_script = repr(query)
 
-        # print(flux_script)    # debug point
+        print(flux_script)   
+         # debug point
 
         if columns is None:
             columns = ['_time','_field','_value']
@@ -115,6 +120,21 @@ class QuerySDK:
 
         return check_query_df(flux_script,data_frame_index,query_client=query_client)
         
+
+    def query_metadata(self, 
+                        obj: Literal['measurements','tag_keys','tag_values','fields'],
+                        bucket:str, **context):
+
+        obj_mapping = {
+            'measurements': yield_measurements_statement,
+            'tag_keys': yield_tag_key_statement,
+            'tag_values': yield_tag_value_statement,
+            'fields': yield_fields_statement
+        }
+        yield_statement = obj_mapping[obj](bucket,**context)
+        print(yield_statement)
+
+
 
 def check_query(flux_script,columns,query_client):
     try:
@@ -142,3 +162,6 @@ def check_query_df(flux_script,data_frame_index,query_client):
             raise EssentialElementsMissingError(f"Bucket or measurement not found.{e.body}") from e
     else:
         return results
+
+
+_schema = 'import "influxdata/influxdb/schema"\n'

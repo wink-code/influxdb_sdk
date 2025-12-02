@@ -1,7 +1,5 @@
 # src/influxdb/exceptions.py
-
-class InfluxDBError(Exception):
-    """ Basic Exception class """
+from influxdb_client.client.exceptions import InfluxDBError
 
 class AuthenticationError(InfluxDBError):
     """ Errors related to Authentication (Token invalid, previledge doesn't meet). """

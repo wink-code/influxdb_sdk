@@ -6,7 +6,7 @@ from influxdb_client.extras import pd
 from influxdb_client.domain.write_precision import WritePrecision
 
 class WriteSDK:
-    '''''' # to code
+    '''writesdk class that is responsibale for write'''
     def __init__(self, sdk: InfluxDBSDK, **kwargs):
         self._sdk = sdk
         self.point_settings = kwargs.get('point_settings') if kwargs else None
@@ -29,7 +29,7 @@ class WriteSDK:
 
         print()
 
-
+    
 
 class BatchingCallback(object):
     def success(self,conf:(str,str,str),data:str):
@@ -41,3 +41,4 @@ class BatchingCallback(object):
     def retry(self,conf:(str,str,str),data:str,exception:InfluxDBError):
         """Retryable error"""
         print(f"Retryable error occurs for batch: {conf}, data: {data},retry: {exception}")
+

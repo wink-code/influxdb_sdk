@@ -6,7 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class Filter:
     measurement: str|List[str] = None
-    tag: Dict[str,str] = None
+    tag: Dict[str,str|List[str]] = None
     field: str|List[str] = None
     ops: str = '=='
     inner_joint: str = ' or '
@@ -51,7 +51,10 @@ class Filter:
         
         if self.measurement:
             if isinstance(self.measurement, List):
-                measurement_statements = (f'r._measurement {self.ops} "{measurement_name}"' for measurement_name in self.measurement)
+                measurement_statements = (f'r._measurement {self.ops} "{measurement_name}"' if isinstance(measurement_name,str)
+                                            else f'r._measurement {self.ops} {measurement_name}'
+                                            for measurement_name in self.measurement)
+
                 filter_conditions.append(self.inner_joint.join(measurement_statements))
             elif isinstance(self.measurement, str):
                 filter_conditions.append(f'r._measurement {self.ops} "{self.measurement}"')
@@ -61,15 +64,24 @@ class Filter:
             for key, value in self.tag.items():
                 if isinstance(value, str):
                     tag_statements.append(f'r.{key} {self.ops} "{value}"')
+                elif isinstance(value, List):
+                    inner_statements = (f'r.{key} {self.ops} "{ele}"' if isinstance(ele, str)
+                                        else f'r.{key} {self.ops} {ele}'
+                                        for ele in value)
+
+                    tag_statements.append(self.inner_joint.join(inner_statements))
                 else:
                     tag_statements.append(f'r.{key} {self.ops} {value}')
-            filter_conditions.append(self.inner_joint.join(tag_statements))
+            filter_conditions.append(" and ".join(tag_statements))
         
         if self.field:
             if isinstance(self.field, List):
-                field_statements = (f'r._field {self.ops} "{key}"' for key in self.field)
+                field_statements = (f'r._field {self.ops} "{key}"' if isinstance(key, str)
+                                        else f'r._field {self.ops} {key}'                
+                                        for key in self.field)
+                                        
                 filter_conditions.append(self.inner_joint.join(field_statements))
-            elif isinsance(self.field, str):
+            elif isinstance(self.field, str):
                 filter_conditions.append(f'r._field {self.ops} "{self.field}"')
 
         return filter_conditions
@@ -92,7 +104,7 @@ class Pivot:
 
     def __repr__(self):
         return ('pivot('
-        f'rowKey:[{','.join(map(lambda s: f'"{s}"', self.rowKey))}]),'
+        f'rowKey:[{','.join(map(lambda s: f'"{s}"', self.rowKey))}],'
         f'columnKey:[{','.join(map(lambda s: f'"{s}"', self.columnKey))}],'
         f'valueColumn:"{self.valueColumn}")')
 
