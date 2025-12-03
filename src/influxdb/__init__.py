@@ -3,6 +3,7 @@ import requests
 import tomllib
 import os
 from types import MethodType
+import dotenv
 from influxdb_client import InfluxDBClient
 from influxdb_client.rest import ApiException
 from influxdb_client.client.write_api import PointSettings
@@ -35,12 +36,16 @@ class InfluxDBSDK(InfluxDBClient):
         else:
             raise ValueError("Token and url are required!")
         
+        
 
 
     def _validate_auth(self):
         try:
             me = self.users_api().me()
-            print(f"\u2713 认证成功\n{me}")
+            print('='*20)
+            print(f"\u2713 认证成功\ncurrent username: {me.name}, id: {me.id}")
+            print('='*20)
+            self.me = me
         except ApiException as e:
             self.close()
             if e.status == 401:
@@ -76,7 +81,8 @@ class InfluxDBSDK(InfluxDBClient):
         except:
             raise RuntimeError(f"`url`,`token` are required in config file. Please check your Config file:{config_file}.")
 
-        if _token.startswith('{env.'):  # TO TEST
+        if _token.startswith('{env'):
+            dotenv.load_dotenv()
             _token = os.getenv(_token[5:-1])
             if not _token:
                 raise RuntimeError(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")

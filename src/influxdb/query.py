@@ -5,11 +5,14 @@ from dataclasses import dataclass
 from influxdb_client.rest import ApiException
 from src.influxdb import InfluxDBSDK
 from src.influxdb.models.flux_obj import AggregateWindow, Pivot, Filter
-from src.influxdb.exceptions import AuthenticationError, EssentialElementsMissingError
+from src.influxdb.exceptions import AuthenticationError, EssentialElementsMissingError, QueryError
 from src.influxdb.utils.yield_statements import (yield_measurements_statement,
                                                  yield_tag_key_statement,
                                                  yield_tag_value_statement,
                                                  yield_fields_statement)
+
+class CompileError(QueryError):
+    """"""
 
 @dataclass
 class FluxQuery:
@@ -82,9 +85,10 @@ class QuerySDK:
         self._sdk = sdk
 
     def query(self, 
-            query: FluxQuery,
+            query: FluxQuery=None,
             columns: List[str] = None,
-            flux_script: str = None
+            flux_script: str = None,
+            **kwargs
             )->List:    
         ''' '''     # to fill the doc string
 
@@ -93,17 +97,16 @@ class QuerySDK:
         if not flux_script:
             flux_script = repr(query)
 
-        print(flux_script)   
-         # debug point
+        print(f'flux script:\n{flux_script}')   # debug point
 
         if columns is None:
             columns = ['_time','_field','_value']
 
-        return check_query(flux_script,columns,query_client=query_client)
+        return submit_query(flux_script,columns,query_client=query_client,**kwargs)
 
 
     def query_df(self,
-                query: FluxQuery,
+                query: FluxQuery = None,
                 data_frame_index: List[str] = None,
                 flux_script: str = None
                 )->List[DataFrame]|DataFrame:
@@ -118,10 +121,10 @@ class QuerySDK:
         if data_frame_index is None:
             data_frame_index = ['_time']
 
-        return check_query_df(flux_script,data_frame_index,query_client=query_client)
+        return submit_query_df(flux_script,data_frame_index,query_client=query_client)
         
 
-    def query_metadata(self, 
+    def query_metadata(self, # error
                         obj: Literal['measurements','tag_keys','tag_values','fields'],
                         bucket:str, **context):
 
@@ -134,29 +137,34 @@ class QuerySDK:
         yield_statement = obj_mapping[obj](bucket,**context)
         print(yield_statement) # to delete, just for test
 
-        complete_statement = _schema + yield_statement
+        complete_statement = _schema + f'\n{yield_statement}'
+        print(complete_statement) # to delete, just for test
 
         ## execute the querying of metadata
 
-        return self.query(complete_statement)  # result here is just Flux Talbe List
+        return self.query(flux_script=complete_statement, **context)  # result here is just Flux Talbe List
 
 
 
-def check_query(flux_script,columns,query_client):
+def submit_query(flux_script,columns,query_client,**kwargs):
     try:
         results = query_client.query(flux_script)
     except ApiException as e:
+        if e.status == 400:
+            raise CompileError(f"Wrong Flux Script, Error message:{e.body}") from e
         if e.status == 401:
             raise AuthenticationError(f"Invalid or missing InfluxDB token. Error message:{e.body}") from e
         if e.status == 403:
             raise AuthenticationError(f"Token does not have permission to query the bucket. Error message:{e.body}") from e
         if e.status == 404:
             raise EssentialElementsMissingError(f"Bucket or measurement not found.{e.body}") from e
+        else:
+            raise e
     else:
         results_list = results.to_values(columns=columns)
         return results_list
     
-def check_query_df(flux_script,data_frame_index,query_client):
+def submit_query_df(flux_script,data_frame_index,query_client):
     try:
         results = query_client.query_data_frame(flux_script, data_frame_index=data_frame_index)
     except ApiException as e:
@@ -170,4 +178,4 @@ def check_query_df(flux_script,data_frame_index,query_client):
         return results
 
 
-_schema = 'import "influxdata/influxdb/schema"\n'
+_schema = 'import "influxdata/influxdb/schema"'

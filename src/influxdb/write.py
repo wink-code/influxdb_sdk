@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from typing import Iterable
 from influxdb_client.client.exceptions import InfluxDBError
 from src.influxdb import InfluxDBSDK
 from influxdb_client.extras import pd
@@ -11,7 +11,10 @@ class WriteSDK:
         self._sdk = sdk
         self.point_settings = kwargs.get('point_settings') if kwargs else None
     
-    def write_data_frame(self, bucket:str, data_frame: pd.DataFrame, data_frame_measurement_name: str):
+    def write_data_frame(self, bucket:str, data_frame: pd.DataFrame,
+                        data_frame_measurement_name: str, 
+                        data_frame_tag_columns: list[str],
+                        write_precision:str = 's'):
         callback = BatchingCallback()
         with self._sdk.write_api(
             point_settings=self.point_settings,success_callback = callback.success,
@@ -21,7 +24,10 @@ class WriteSDK:
 
             print(f'writing dataframe data into bucket: {bucket}, measurement: {data_frame_measurement_name}')
 
-            write_client.write(bucket=bucket, record=data_frame, data_frame_measurement_name=data_frame_measurement_name, write_precision='s')
+            write_client.write(bucket=bucket, record=data_frame, 
+                    data_frame_measurement_name=data_frame_measurement_name, 
+                    data_frame_tag_columns=data_frame_tag_columns, 
+                    write_precision=write_precision)
 
         print()
 
@@ -29,8 +35,17 @@ class WriteSDK:
 
         print()
 
-    
+    def write_points(self,bucket:str,record:Iterable['dataclass']|'dataclass',point_settings:PointSettings=None,write_precision='s'):
+        with self._sdk.write_api(point_settings=point_settings) as write_client:
+            start_time = datetime.now()
+            write_client.write(bucket=bucket, record=data_frame,
+                        write_precision=write_precision)
+        print()
 
+        print(f'All data was written in {datetime.now()-start_time}.')
+
+        print()
+        
 class BatchingCallback(object):
     def success(self,conf:(str,str,str),data:str):
         """Successfully written batch"""

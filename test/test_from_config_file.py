@@ -14,6 +14,17 @@ except Exception as e:
 else:
     print('客户端配置成功！')
     print(f'{influxdbsdk.org}')
+
+    authentications_api = influxdbsdk.authorizations_api()
+
+    for authorization in authentications_api.find_authorizations_by_user(influxdbsdk.me):
+    #    print(authorization) 
+        print(f'{'resource':<20}: {'actioin':>10}')
+        print('='*20)
+        for permission in authorization.permissions:
+            # if permission. != 
+            print(f'{permission.resource.type:<20}: {permission.action:>10}')
+        print('='*20)
 finally:
     influxdbsdk.close()
 # with InfluxDBSDK.from_config_file(config_path) as client:
