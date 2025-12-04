@@ -5,6 +5,7 @@ description = "A package that depends on the `influxdb-client`, for the db manag
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "dotenv>=0.9.9",
     "influxdb-client>=1.49.0",
     "matplotlib>=3.10.7",
     "openpyxl>=3.1.5",
