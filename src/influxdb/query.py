@@ -87,10 +87,16 @@ class QuerySDK:
     def query(self, 
             query: FluxQuery=None,
             columns: List[str] = None,
-            flux_script: str = None,
-            **kwargs
+            flux_script: str = None
             )->List:    
-        ''' '''     # to fill the doc string
+        ''' 
+        Query function 
+        :param `FluxQuery`: query = None, a costomized class that organizes the flux scripts
+        :param `list[str]`: columns = None, parameter of the columns you want to represent, 
+            there are '["_time","_value","_field","_measurement"] and so on.
+        :param `str`: flux_script = None, the flux script that has the priority beyond other parameters.
+        :return `list`
+        '''     # to fill the doc string
 
         query_client = self._sdk.query_api()
 
@@ -99,10 +105,11 @@ class QuerySDK:
 
         print(f'flux script:\n{flux_script}')   # debug point
 
-        if columns is None:
-            columns = ['_time','_field','_value']
+        if columns:
+            results = submit_query(flux_script, query_client=query_client)
+            return results.to_values(columns=columns)
 
-        return submit_query(flux_script,columns,query_client=query_client,**kwargs)
+        return submit_query(flux_script, query_client=query_client)
 
 
     def query_df(self,
@@ -110,7 +117,12 @@ class QuerySDK:
                 data_frame_index: List[str] = None,
                 flux_script: str = None
                 )->List[DataFrame]|DataFrame:
-        ''' '''   # to fill the doc string
+        '''
+        Query function
+        param: `FluxQuery`: query, is the costomized class to build the flux script.
+        param: `list[str]`: data_frame_index, is the data_frame's index you define to organize the table.
+        param: `str`: flux_script, has the highest priority beyond other parameters.
+        ''' 
 
         query_client = self._sdk.query_api()
 
@@ -118,15 +130,17 @@ class QuerySDK:
             flux_script = repr(query)
         # print(flux_script)  # debug point
 
-        if data_frame_index is None:
-            data_frame_index = ['_time']
+        if data_frame_index:
+            return submit_query_df(flux_script,
+                                data_frame_index=data_frame_index,
+                                query_client=query_client)
 
-        return submit_query_df(flux_script,data_frame_index,query_client=query_client)
+        return submit_query_df(flux_script,query_client=query_client)
         
 
     def query_metadata(self, # error
                         obj: Literal['measurements','tag_keys','tag_values','fields'],
-                        bucket:str, **context):
+                        bucket:str=None, **context):
 
         obj_mapping = {
             'measurements': yield_measurements_statement,
@@ -135,18 +149,21 @@ class QuerySDK:
             'fields': yield_fields_statement
         }
         yield_statement = obj_mapping[obj](bucket,**context)
-        print(yield_statement) # to delete, just for test
+        # print(yield_statement) # to delete, just for test
 
         complete_statement = _schema + f'\n{yield_statement}'
         print(complete_statement) # to delete, just for test
 
         ## execute the querying of metadata
 
-        return self.query(flux_script=complete_statement, **context)  # result here is just Flux Talbe List
+        return self.query(flux_script=complete_statement, columns=context.get('columns',['_value']))  # result here is just Flux Talbe List
 
 
 
-def submit_query(flux_script,columns,query_client,**kwargs):
+def submit_query(flux_script, query_client):
+    '''
+    function that submit the flux script to influxdb, the validation responsibility to handover the influxdb backend.
+    '''
     try:
         results = query_client.query(flux_script)
     except ApiException as e:
@@ -161,19 +178,22 @@ def submit_query(flux_script,columns,query_client,**kwargs):
         else:
             raise e
     else:
-        results_list = results.to_values(columns=columns)
-        return results_list
+        return results
     
-def submit_query_df(flux_script,data_frame_index,query_client):
+def submit_query_df(flux_script,query_client,data_frame_index=None): 
     try:
-        results = query_client.query_data_frame(flux_script, data_frame_index=data_frame_index)
+        results = query_client.query_data_frame(flux_script, data_frame_index=data_frame_index) 
     except ApiException as e:
+        if e.status == 400:
+            raise CompileError(f"Wrong Flux Script, Error message:{e.body}") from e
         if e.status == 401:
             raise AuthenticationError(f"Invalid or missing InfluxDB token. Error message:{e.body}") from e
         if e.status == 403:
             raise AuthenticationError(f"Token does not have permission to query the bucket. Error message:{e.body}") from e
         if e.status == 404:
             raise EssentialElementsMissingError(f"Bucket or measurement not found.{e.body}") from e
+        else:
+            raise e
     else:
         return results
 

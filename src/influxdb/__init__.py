@@ -10,7 +10,7 @@ from influxdb_client.client.write_api import PointSettings
 from pandas import DataFrame
 from src.influxdb.utils.chain import chain
 from src.influxdb.exceptions import InfluxDBError, AuthenticationError, EssentialElementsMissingError
-from src.influxdb.models.flux_obj import PredicateFilter
+from src.influxdb.models.flux_obj import DeletePredicateFilter
 # from influxdb_client.client.write_api import WriteOptions
 
 
@@ -101,7 +101,7 @@ class InfluxDBSDK(InfluxDBClient):
         from src.influxdb.write import WriteSDK
         return WriteSDK(self,point_settings=point_settings)
     
-    def delete(self, bucket:str, start:str, stop:str, predicate_filter: PredicateFilter):
+    def delete(self, bucket:str, start:str, stop:str, predicate_filter: DeletePredicateFilter):
         ''' 
         Delete the points that satisfy the conditions of parameters.
         param str: bucket, the bucket where points will be deleted.
@@ -114,13 +114,13 @@ class InfluxDBSDK(InfluxDBClient):
             predicate = None
         else:
             predicate = repr(predicate_filter).replace('r.','')
-            # print(predicate) # to delete, only test
+            print(predicate) # to delete, only test
         try:
             super().delete_api().delete(bucket=bucket, start=start, stop=stop, predicate=predicate)
         except ApiException as e:
-            print(f"failed to delte:bucket{bucket},start:{start},stop:{stop}"
-                                f"\n              {predicate}"
-                                f"\n             error:{str(e)}")
+            print(f"failed to delte:bucket:{bucket},start:{start},stop:{stop}"
+                                f"\n                {predicate}"
+                                f"\n                error:{str(e)}")
         else:
             print(f'NO Errors! [Action: delete]')
 

@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Iterable
+from typing import Iterable, Union
 from influxdb_client.client.exceptions import InfluxDBError
+from influxdb_client.client.write_api import PointSettings
 from src.influxdb import InfluxDBSDK
 from influxdb_client.extras import pd
 from influxdb_client.domain.write_precision import WritePrecision
@@ -11,34 +12,39 @@ class WriteSDK:
         self._sdk = sdk
         self.point_settings = kwargs.get('point_settings') if kwargs else None
     
-    def write_data_frame(self, bucket:str, data_frame: pd.DataFrame,
+    def write_data_frame(self, bucket:str, 
+                        data_frame: pd.DataFrame,
                         data_frame_measurement_name: str, 
                         data_frame_tag_columns: list[str],
                         write_precision:str = 's'):
         callback = BatchingCallback()
         with self._sdk.write_api(
-            point_settings=self.point_settings,success_callback = callback.success,
-            error_callback = callback.error,retry_callback = callback.retry) as write_client:
+            point_settings=self.point_settings,
+            success_callback = callback.success,
+            error_callback = callback.error,
+            retry_callback = callback.retry) as write_client:
 
             start_time = datetime.now()
 
             print(f'writing dataframe data into bucket: {bucket}, measurement: {data_frame_measurement_name}')
 
-            write_client.write(bucket=bucket, record=data_frame, 
+            write_client.write(bucket=bucket, 
+                    record=data_frame, 
                     data_frame_measurement_name=data_frame_measurement_name, 
                     data_frame_tag_columns=data_frame_tag_columns, 
                     write_precision=write_precision)
 
         print()
-
         print(f'All data was written in {datetime.now()-start_time}.')
-
         print()
 
-    def write_points(self,bucket:str,record:Iterable['dataclass']|'dataclass',point_settings:PointSettings=None,write_precision='s'):
+    def write_dataclass_objects(self,bucket:str,
+                    record:Union[Iterable['dataclass'],'dataclass'],
+                    point_settings:PointSettings=None,
+                    write_precision='s'):
         with self._sdk.write_api(point_settings=point_settings) as write_client:
             start_time = datetime.now()
-            write_client.write(bucket=bucket, record=data_frame,
+            write_client.write(bucket=bucket, record=record,
                         write_precision=write_precision)
         print()
 

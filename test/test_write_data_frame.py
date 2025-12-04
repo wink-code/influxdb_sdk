@@ -10,13 +10,16 @@ raw_data_frame = pd.read_excel(r'test/test_data/4号球6月-7月数据.xlsx',she
 needed_data_frame = raw_data_frame.drop(columns=['ID'])
 
 # needed_data_frame.index = pd.to_datetime(needed_data_frame.index,unit='s')
-needed_data_frame.index = needed_data_frame.index.round('s')
+# needed_data_frame.index = needed_data_frame.index.round('s')
+
 
 needed_data_frame['location'] = 'London'
 
 print(needed_data_frame.head())
 
-print(needed_data_frame['location'])
+# print(needed_data_frame.index)
+
+# print(needed_data_frame['location'])
 
 # print(needed_data_frame.iloc[:,2])
 
@@ -42,6 +45,9 @@ def plot_data():
 
 
 with InfluxDBSDK.from_config_file(r'/workspace/test/influxdb-client.toml',debug=True) as sdk:
-    write_sdk = sdk.write_sdk(point_settings=PointSettings())
-    write_sdk.write_data_frame(bucket='write-test',data_frame=needed_data_frame, data_frame_measurement_name='4号球6月-7月数据', data_frame_tag_columns=['location'])
+    write_sdk = sdk.write_sdk(point_settings=PointSettings(**{'location':'New York','unit':'度'}))
+    write_sdk.write_data_frame(bucket='write-test',
+    data_frame=needed_data_frame, 
+    data_frame_measurement_name='4号球6月-7月数据', 
+    data_frame_tag_columns=['location'])
     

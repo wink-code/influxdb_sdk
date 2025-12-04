@@ -110,9 +110,17 @@ class Pivot:
 
 
 
-class PredicateFilter(Filter):
+class DeletePredicateFilter(Filter):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.joint = ' AND '
         self.template = '{}'
         self.ops = '='
+
+class QueryPredicateFilter(Filter):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.joint = ' and '
+        self.inner_joint = ' or '
+        self.ops = ' == '
+        self.template = '({})'
