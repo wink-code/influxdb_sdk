@@ -10,6 +10,8 @@ from influxdb_client.rest import ApiException
 # from src.influxdb.utils.chain import chain
 from src.influxdb.exceptions import InfluxDBError, AuthenticationError, EssentialElementsMissingError
 from src.influxdb.models.flux_obj import DeletePredicateFilter
+from src.influxdb.utils.time_set import is_relative_time, get_relative_time, TimeZone
+
 # from influxdb_client.client.write_api import WriteOptions
 
 
@@ -114,18 +116,28 @@ class InfluxDBSDK(InfluxDBClient):
         else:
             predicate = repr(predicate_filter).replace('r.','')
             print(predicate) # to delete, only test
+    
+        p_start = _process_relative_time(start)
+
+        p_stop = _process_relative_time(stop)
+
         try:
-            super().delete_api().delete(bucket=bucket, start=start, stop=stop, predicate=predicate)
+            super().delete_api().delete(bucket=bucket, start=p_start, stop=p_stop, predicate=predicate)
+         
         except ApiException as e:
             print(f"failed to delte:bucket:{bucket},start:{start},stop:{stop}"
                                 f"\n                {predicate}"
                                 f"\n                error:{str(e)}")
         else:
-            print(f'NO Errors! [Action: delete]')
+            print(f'NO Errors! [Action: delete]'
+                    f'\nstart:{start},stop:{stop}')
 
 
 
 
-
-
+def _process_relative_time(r_time: str):
+    if is_relative_time(r_time):
+        abs_start = get_relative_time(r_time).astimezone(TimeZone.UTC.value)
+        return abs_start.strftime('%Y-%m-%dT%H:%M:%SZ')
+    return r_time
 
