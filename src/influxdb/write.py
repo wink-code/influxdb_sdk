@@ -38,19 +38,7 @@ class WriteSDK:
         print(f'All data was written in {datetime.now()-start_time}.')
         print()
 
-    def write_dataclass_objects(self,bucket:str,
-                    record:Union[Iterable['dataclass'],'dataclass'],
-                    point_settings:PointSettings=None,
-                    write_precision='s'):
-        with self._sdk.write_api(point_settings=point_settings) as write_client:
-            start_time = datetime.now()
-            write_client.write(bucket=bucket, record=record,
-                        write_precision=write_precision)
-        print()
 
-        print(f'All data was written in {datetime.now()-start_time}.')
-
-        print()
         
 class BatchingCallback(object):
     def success(self,conf:(str,str,str),data:str):

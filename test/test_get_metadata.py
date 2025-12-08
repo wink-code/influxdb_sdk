@@ -23,7 +23,7 @@ with InfluxDBSDK.from_config_file('influxdb-client.toml') as client:
     # print(tag_values)
 
     # field_keys = query_sdk.query_metadata(obj='fields',bucket="temp",filters=QueryPredicateFilter(tag={"location":"room1"}))
-    field_keys = query_sdk.query_metadata(obj='fields',bucket="temp",filters=QueryPredicateFilter(tag={"location":["room1","room2"]},measurement="rooms"))
+    # field_keys = query_sdk.query_metadata(obj='fields',bucket="temp",filters=QueryPredicateFilter(tag={"location":["room1","room2"]},measurement="rooms"))
     # field_keys = query_sdk.query_metadata(obj='fields',context={})
 
     print(field_keys)

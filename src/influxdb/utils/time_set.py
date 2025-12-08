@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 from enum import Enum
 import re
 
-PATTERN = r'^([+,-]?)(\d+)([s,m,h,d,y])'
+PATTERN = r'^([+-]?)(\d+)([smhdy])'
 
 class TimeZone(Enum):
     BEIJING = ZoneInfo('Asia/Shanghai')

@@ -19,7 +19,7 @@ __all__ = ["InfluxDBSDK"]
 class InfluxDBSDK(InfluxDBClient):
     def __init__(
             self,
-            url:str='http://influxdb-dev:8086',
+            url:str='http://influxdb-dev:8086', # 这个需要吗？“默认值”
             org:Optional[str]=None,
             token:str=None,
             **kwargs
@@ -76,11 +76,11 @@ class InfluxDBSDK(InfluxDBClient):
 
         if not _client_config:
             raise KeyError("influx2")
-        _url = _client_config.pop('url')
+        _url = _client_config.get('url')
         try:
             _token = _client_config.pop('token')
         except:
-            raise RuntimeError(f"`url`,`token` are required in config file. Please check your Config file:{config_file}.")
+            raise RuntimeError(f"`token` are required in config file. Please check your Config file:{config_file}.")
 
         if _token.startswith('{env'):
             dotenv.load_dotenv()
@@ -93,12 +93,12 @@ class InfluxDBSDK(InfluxDBClient):
         return cls(token=_token,**_client_config)
     
     def query_sdk(self):
-        ''' return QuerySDK class object that support influx query. ''' # to fill the doc string
+        ''' return QuerySDK class object that support influx query. ''' 
         from src.influxdb.query import QuerySDK
         return QuerySDK(self)
 
     def write_sdk(self,point_settings=None):
-        ''' return WriteSDK class that support influxdb write manipulations.''' # to code
+        ''' return WriteSDK class that support influxdb write manipulations.''' 
         from src.influxdb.write import WriteSDK
         return WriteSDK(self,point_settings=point_settings)
     
