@@ -24,15 +24,15 @@ class Pivot:
         :param columnKey: list of column keys
         :param valueColumn: value column
     '''
-    rowKey: List[Literal["_time"]]  # to extend
-    columnKey: List[str]
-    valueColumn: Literal["_value"]
+    row_key: List[Literal["_time"]]  # to extend
+    column_key: List[str]
+    value_column: Literal["_value"]
 
     def __repr__(self):
         return ('pivot('
-        f'rowKey:[{','.join(map(lambda s: f'"{s}"', self.rowKey))}],'
-        f'columnKey:[{','.join(map(lambda s: f'"{s}"', self.columnKey))}],'
-        f'valueColumn:"{self.valueColumn}")')
+        f'rowKey:[{','.join(map(lambda s: f'"{s}"', self.row_key))}],'
+        f'columnKey:[{','.join(map(lambda s: f'"{s}"', self.column_key))}],'
+        f'valueColumn:"{self.value_column}")')
 
 @dataclass
 class Limit:
