@@ -1,0 +1,20 @@
+2025-12-12 10:08:18,251 - src.influxdb.influxdb.__init__ - INFO - load token from environment variable:`cLzrEjsPqqxvd1eeD9uoWA-CXoNdVlczQjjvhGWebuavQ1pd2NeDom-ClY2cpXy8_z-1FtbKjdIjaxyEQ=`
+2025-12-12 10:08:18,350 - src.influxdb.influxdb.__init__ - INFO - ====================
+2025-12-12 10:08:18,350 - src.influxdb.influxdb.__init__ - INFO - ✓ 认证成功
+current username: admin, id: 0fdb6da0a09e4000
+2025-12-12 10:08:18,351 - src.influxdb.influxdb.__init__ - INFO - ====================
+2025-12-12 10:47:11,346 - src.influxdb.influxdb.__init__ - INFO - load token from environment variable:`cLzrEjsPqqxvd1eeD9uoWA-CXoNdVlczQjjvhGWebuavQ1pd2NeDom-ClY2cpXy8_z-1FtbKjdIjaxyEQ=`
+2025-12-12 10:47:11,425 - src.influxdb.influxdb.__init__ - INFO - ✓ 认证成功 - [current username: admin, id: 0fdb6da0a09e4000]
+2025-12-12 10:55:57,709 - src.influxdb.influxdb.__init__ - INFO - load token from environment variable:`cLzrEjsPqqxvd1eeD9uoWA-CXoNdVlczQjjvhGWebuavQ1pd2NeDom-ClY2cpXy8_z-1FtbKjdIjaxyEQ=`
+2025-12-12 10:55:57,778 - src.influxdb.influxdb.__init__ - INFO - ✓ 认证成功 - [current username: admin, id: 0fdb6da0a09e4000]
+2025-12-12 10:56:21,919 - src.influxdb.influxdb.__init__ - INFO - load token from environment variable:`cLzrEjsPqqxvd1eeD9uoWA-CXoNdVlczQjjvhGWebuavQ1pd2NeDom-ClY2cpXy8_z-1FtbKjdIjaxyEQ=`
+2025-12-12 10:56:21,989 - src.influxdb.influxdb.__init__ - INFO - ✓ 认证成功 - [current username: admin, id: 0fdb6da0a09e4000]
+2025-12-12 10:58:47,521 - src.influxdb.influxdb.__init__ - INFO - load token from environment variable:`cLzrEjsPqqxvd1eeD9uoWA-CXoNdVlczQjjvhGWebuavQ1pd2NeDom-ClY2cpXy8_z-1FtbKjdIjaxyEQ=`
+2025-12-12 10:58:47,588 - src.influxdb.influxdb.__init__ - INFO - ✓ 认证成功 - [current username: admin, id: 0fdb6da0a09e4000]
+2025-12-12 10:58:47,589 - src.influxdb.influxdb.__init__ - INFO - ✓ 客户端初始化成功 - [url: http://influxdb-dev:8086, org: DFMC]
+2025-12-12 11:06:07,686 - src.influxdb.influxdb.__init__ - INFO - load token from environment variable:`{env.INFLUXDB_TKEN}`
+2025-12-12 11:06:07,687 - src.influxdb.influxdb.__init__ - ERROR - environment variable `{env.INFLUXDB_TKEN}` not found in system, please check the variable config.
+2025-12-12 11:06:07,763 - src.influxdb - ERROR - ❌ 客户端初始化失败 - [url: http://influxdb-dev:8086, org: DFMC]
+2025-12-12 11:15:13,599 - src.influxdb - ERROR - ❌ 客户端初始化失败 - [url: http://influxdb-dev:8086, org: DFMC]
+2025-12-12 11:16:16,537 - src.influxdb - ERROR - ❌ 客户端初始化失败 - [url: http://influxdb-dev:8086, org: DFMC]
+2025-12-12 11:27:12,831 - src.influxdb - ERROR - ❌ 客户端初始化失败 - [url: http://influxdb-dev:8086, org: DFMC]

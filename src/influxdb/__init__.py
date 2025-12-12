@@ -2,6 +2,8 @@ from typing import Optional,Dict
 import requests
 import tomllib
 import os
+import logging
+from logging import getLogger
 import dotenv
 from influxdb_client import InfluxDBClient
 from influxdb_client.rest import ApiException
@@ -14,28 +16,48 @@ from src.influxdb.utils.time_set import is_relative_time, get_relative_time, Tim
 
 # from influxdb_client.client.write_api import WriteOptions
 
+logging.basicConfig(level=logging.WARNING)
+logger = getLogger(__name__)
+handler = logging.FileHandler('influxdb_sdk.log',encoding='utf-8')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger_init = logger.getChild("influxdb.__init__")
+init_handler = logging.StreamHandler()
+init_formatter = logging.Formatter('%(message)s')
+init_handler.setFormatter(init_formatter)
+logger_init.addHandler(init_handler)
+logger_init.setLevel(logging.INFO)
+logger_init.propagate = False
+
 
 __all__ = ["InfluxDBSDK"]
 class InfluxDBSDK(InfluxDBClient):
     def __init__(
             self,
-            url:str='http://influxdb-dev:8086', # 这个需要吗？“默认值”
-            org:Optional[str]=None,
-            token:str=None,
+            url:str,
+            org:Optional[str],
+            token:str,
             **kwargs
             )->None:
         """
         :param url:str = 'http://influxdb-dev:8086' , the influxdb service host url
         :param org:str = None, represent the org of the influxdb client
         :param token:str = None, authorize to the influxdb client
-        :param default_tags: dict, the default tags define the default key-value pairs for the points
         """
-        if all((url,token,org)):
-            super().__init__(url,token,org=org,**kwargs)
-            # 初始化时自动校验
-            self._validate_auth()
-        else:
+        if not all((url,token,org)):
+            logger.error(f"\u274C 客户端初始化失败 - url, token and org are required!")
             raise ValueError("Token and url are required!")
+
+        super().__init__(url,token,org=org,**kwargs)
+        # 初始化时自动校验
+        if self._validate_auth():
+            logger_init.info(f"\u2713 客户端初始化成功 - [url: {url}, org: {org}]")
+        else:
+            logger.error(f"\u274C 客户端初始化失败 - [url: {url}, org: {org}]")
+            raise InfluxDBError("Client initialization failed!")
+
+
         
         
 
@@ -43,54 +65,71 @@ class InfluxDBSDK(InfluxDBClient):
     def _validate_auth(self):
         try:
             me = self.users_api().me()
-            print('='*20)
-            print(f"\u2713 认证成功\ncurrent username: {me.name}, id: {me.id}")
-            print('='*20)
+            logger_init.info(f"\u2713 认证成功 - [current username: {me.name}, id: {me.id}]")
             self.me = me
         except ApiException as e:
             self.close()
-            if e.status == 401:
-                raise AuthenticationError(f"\u274C Token无效！响应：{e.body}") from e
-            if e.status == 403:
-                raise AuthenticationError(f"\u274C Token对 org[{self.org}] 无权限") from e
-            if e.status == 404:
-                raise EssentialElementsMissingError(f"\u274C Org [{self.org}] 不存在") from e
-            raise InfluxDBError(f"\u274C 认证失败！状态码：{e.status} 响应：{e.body}") from e
+            # logger.error(f"\u274C 认证失败 - 状态码：{e.status} 响应：{e.body}")
+            # if e.status == 401:
+            #     raise AuthenticationError(f"\u274C Token无效！响应：{e.body}") from e
+            # if e.status == 403:
+            #     raise AuthenticationError(f"\u274C Token对 org[{self.org}] 无权限") from e
+            # if e.status == 404:
+            #     raise EssentialElementsMissingError(f"\u274C Org [{self.org}] 不存在") from e
+            # raise InfluxDBError(f"\u274C 认证失败！状态码：{e.status} 响应：{e.body}") from e
+
         # 捕获连接拒接，超时等网络错误
         except (ConnectionRefusedError, TimeoutError) as e:
-            self.close()
-            raise RuntimeError(f"\u274C 连接失败：无法连接到 Influx DB服务，请检查url和服务状态。错误：{str(e)}") from e
+            logger.error(f"\u274C 连接失败：无法连接到 Influx DB服务，请检查url和服务状态。错误：{str(e)}")
+            # self.close()
+            # raise RuntimeError(f"\u274C 连接失败：无法连接到 Influx DB服务，请检查url和服务状态。错误：{str(e)}") from e
+
         except requests.exceptions.RequestException as e:
-            self.close()
-            raise RuntimeError(f"\u274C 网络请求错误：{str(e)}") from e
+            logger.error(f"\u274C 网络请求错误：{str(e)}")
+            # self.close()
+            # raise RuntimeError(f"\u274C 网络请求错误：{str(e)}") from e
+
         except Exception as e:
-            self.close()
-            raise RuntimeError(f"\u274C 客户端初始化失败：{str(e)}") from e
+            logger.error(f"\u274C 客户端初始化失败：{str(e)}")
+            # self.close()
+            # raise RuntimeError(f"\u274C 客户端初始化失败：{str(e)}") from e
+        
+        else:
+            return True
+        
 
     @classmethod
     def from_config_file(cls, config_file = "config.toml", debug=None, enable_gzip=False, **kwargs):
         with open(config_file, 'rb') as f:
             data = tomllib.load(f)
         _client_config: Dict = data.get('influx2')
-        default_tags: Dict = data.get('tags')
+        
 
         if not _client_config:
-            raise KeyError("influx2")
+            logger.error(f'default key is "influx2", please check your Config file:{config_file}.')
+            raise KeyError(f"default key is \"influx2\", please check your Config file:{config_file}.")
+
+
         _url = _client_config.get('url')
+
         try:
             _token = _client_config.pop('token')
         except:
+            logger.error(f"`token` missed in config file. Please check your Config file:{config_file}.")
             raise RuntimeError(f"`token` are required in config file. Please check your Config file:{config_file}.")
 
         if _token.startswith('{env'):
             dotenv.load_dotenv()
-            _token = os.getenv(_token[5:-1])
-            if not _token:
-                raise RuntimeError(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
+            t_token = os.getenv(_token[5:-1],None)
+            logger_init.info(f"load token from environment variable:`{_token[5:-1]}`") # 开发调试信息，上线可注释
+            if not t_token:
+                logger_init.error(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
+                # raise RuntimeError(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
         
-        if _url:
-            return cls(url=_url,token=_token,**_client_config)
-        return cls(token=_token,**_client_config)
+
+        return cls(url=_url,token=_token,**_client_config)
+
+
     
     def query_sdk(self):
         ''' return QuerySDK class object that support influx query. ''' 

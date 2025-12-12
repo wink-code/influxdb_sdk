@@ -4,7 +4,8 @@ from pandas import DataFrame
 from dataclasses import dataclass
 from influxdb_client.rest import ApiException
 from src.influxdb import InfluxDBSDK
-from src.influxdb.models.flux_obj import AggregateWindow, Pivot, Filter, FluxQuery
+from src.influxdb.models.flux_obj import AggregateWindow, Pivot, Filter
+from src.influxdb.modelds.flux_query import FluxQuery
 from src.influxdb.exceptions import AuthenticationError, EssentialElementsMissingError, QueryError
 from src.influxdb.utils.yield_statements import (yield_measurements_statement,
                                                  yield_tag_key_statement,

@@ -2,3 +2,6 @@
     url = "http://influxdb-dev:8086"
     token = "{env.INFLUXDB_TOKEN}"
     org = "DFMC"
+
+[tag]
+    location = "NewYork"

@@ -2,9 +2,10 @@ from src.influxdb import InfluxDBSDK
 import os
 import sys
 # print(sys.path)
-print(__file__)
-config_path = "influxdb-client.toml"
-os.chdir(os.path.dirname(os.path.abspath((__file__))))
+# print(__file__)
+config_path = "/workspace/test/influxdb-client.toml"
+# config_path = "/workspace/test/influxdb-client_anti.toml"
+# os.chdir(os.path.dirname(os.path.abspath((__file__))))
 # print(os.getcwd())
 # print(os.path.exists(config_path))
 try:
@@ -15,18 +16,21 @@ else:
     print('客户端配置成功！')
     print(f'{influxdbsdk.org}')
 
-    authentications_api = influxdbsdk.authorizations_api()
+    # authentications_api = influxdbsdk.authorizations_api()
 
-    for authorization in authentications_api.find_authorizations_by_user(influxdbsdk.me):
-    #    print(authorization) 
-        print(f'{'resource':<20}: {'actioin':>10}')
-        print('='*20)
-        for permission in authorization.permissions:
-            # if permission. != 
-            print(f'{permission.resource.type:<20}: {permission.action:>10}')
-        print('='*20)
-finally:
+    # for authorization in authentications_api.find_authorizations_by_user(influxdbsdk.me):
+    # #    print(authorization) 
+    #     print(f'{'resource':<20}: {'actioin':>10}')
+    #     print('='*20)
+    #     for permission in authorization.permissions:
+    #         # if permission. != 
+    #         print(f'{permission.resource.type:<20}: {permission.action:>10}')
+    #     print('='*20)
+
+    print(influxdbsdk.default_tags)
     influxdbsdk.close()
+
+
 # with InfluxDBSDK.from_config_file(config_path) as client:
 #     if client.ping():
 #         print('ping successfully.')
