@@ -45,6 +45,7 @@ class InfluxDBSDK(InfluxDBClient):
         :param org:str = None, represent the org of the influxdb client
         :param token:str = None, authorize to the influxdb client
         """
+        logger_init.info("开始连接 InfluxDB 服务, 地址：{}".format(url))
         if not all((url,token,org)):
             logger.error(f"\u274C 客户端初始化失败 - url, token and org are required!")
             raise ValueError("Token and url are required!")
@@ -52,9 +53,9 @@ class InfluxDBSDK(InfluxDBClient):
         super().__init__(url,token,org=org,**kwargs)
         # 初始化时自动校验
         if self._validate_auth():
-            logger_init.info(f"\u2713 客户端初始化成功 - [url: {url}, org: {org}]")
+            logger_init.info("\u2713 客户端初始化成功 - [url: {}, org: {}]".format(url,org))
         else:
-            logger.error(f"\u274C 客户端初始化失败 - [url: {url}, org: {org}]")
+            logger_init.error("\u274C 客户端初始化失败 - [url: {}, org: {}]".format(url,org))
             raise InfluxDBError("Client initialization failed!")
 
 
@@ -65,41 +66,38 @@ class InfluxDBSDK(InfluxDBClient):
     def _validate_auth(self):
         try:
             me = self.users_api().me()
-            logger_init.info(f"\u2713 认证成功 - [current username: {me.name}, id: {me.id}]")
+            logger_init.info("\u2713 认证成功 - [current username: {}, id: {}]".format(me.name, me.id))
             self.me = me
         except ApiException as e:
             self.close()
-            # logger.error(f"\u274C 认证失败 - 状态码：{e.status} 响应：{e.body}")
-            # if e.status == 401:
-            #     raise AuthenticationError(f"\u274C Token无效！响应：{e.body}") from e
-            # if e.status == 403:
-            #     raise AuthenticationError(f"\u274C Token对 org[{self.org}] 无权限") from e
-            # if e.status == 404:
-            #     raise EssentialElementsMissingError(f"\u274C Org [{self.org}] 不存在") from e
-            # raise InfluxDBError(f"\u274C 认证失败！状态码：{e.status} 响应：{e.body}") from e
+            logger.error("\u274C 认证失败 - 状态码：{} 响应：{}".format(e.status, e.body))
+            if e.status == 401:
+                raise AuthenticationError(f"\u274C Token无效！响应：{e.body}") from e
+            if e.status == 403:
+                raise AuthenticationError(f"\u274C Token对 org[{self.org}] 无权限") from e
+            if e.status == 404:
+                raise EssentialElementsMissingError(f"\u274C Org [{self.org}] 不存在") from e
+            raise InfluxDBError(f"\u274C 认证失败！状态码：{e.status} 响应：{e.body}") from e
 
         # 捕获连接拒接，超时等网络错误
         except (ConnectionRefusedError, TimeoutError) as e:
-            logger.error(f"\u274C 连接失败：无法连接到 Influx DB服务，请检查url和服务状态。错误：{str(e)}")
-            # self.close()
-            # raise RuntimeError(f"\u274C 连接失败：无法连接到 Influx DB服务，请检查url和服务状态。错误：{str(e)}") from e
+            logger.error("\u274C 连接失败：无法连接到 Influx DB服务，请检查url和服务状态。错误：{}".format(str(e)))
+            self.close()
+            raise RuntimeError(f"\u274C 连接失败：无法连接到 Influx DB服务，请检查url和服务状态。错误：{str(e)}") from e
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"\u274C 网络请求错误：{str(e)}")
-            # self.close()
-            # raise RuntimeError(f"\u274C 网络请求错误：{str(e)}") from e
+            logger.error("\u274C 网络请求错误：{}".format(str(e)))
+            self.close()
+            raise RuntimeError(f"\u274C 网络请求错误：{str(e)}") from e
 
-        except Exception as e:
-            logger.error(f"\u274C 客户端初始化失败：{str(e)}")
-            # self.close()
-            # raise RuntimeError(f"\u274C 客户端初始化失败：{str(e)}") from e
-        
         else:
             return True
         
 
     @classmethod
-    def from_config_file(cls, config_file = "config.toml", debug=None, enable_gzip=False, **kwargs):
+    def from_config_file(cls, config_file = "config.toml", 
+                debug=None, enable_gzip=False, **kwargs):
+
         with open(config_file, 'rb') as f:
             data = tomllib.load(f)
         _client_config: Dict = data.get('influx2')
@@ -115,19 +113,21 @@ class InfluxDBSDK(InfluxDBClient):
         try:
             _token = _client_config.pop('token')
         except:
-            logger.error(f"`token` missed in config file. Please check your Config file:{config_file}.")
-            raise RuntimeError(f"`token` are required in config file. Please check your Config file:{config_file}.")
+            logger.error("`token` missed in config file."
+            " Please check your Config file:{}.".format(config_file))
+            raise RuntimeError(f"`token` are required in config file."
+            " Please check your Config file:{config_file}.")
 
         if _token.startswith('{env'):
             dotenv.load_dotenv()
             t_token = os.getenv(_token[5:-1],None)
-            logger_init.info(f"load token from environment variable:`{_token[5:-1]}`") # 开发调试信息，上线可注释
+            logger_init.info("load token from environment variable:`{}`".format(_token[5:-1])) # 开发调试信息，上线可注释
             if not t_token:
-                logger_init.error(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
+                logger_init.error("environment variable `{}` not found in system, please check the variable config.".format(_token[5:-1]))
                 # raise RuntimeError(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
         
 
-        return cls(url=_url,token=_token,**_client_config)
+        return cls(url=_url,token=_token,debug=debug,enable_gzip=enable_gzip,**_client_config)
 
 
     
@@ -145,10 +145,13 @@ class InfluxDBSDK(InfluxDBClient):
         ''' 
         Delete the points that satisfy the conditions of parameters.
         param str: bucket, the bucket where points will be deleted.
-        param str: start, start time of the deleted points, formation could be relative deltatime, like '-1h', or absolute deltatime, like '2025-11-30T12:00:00Z'.
+        param str: start, start time of the deleted points, formation could be relative deltatime, like '-1h', 
+        or absolute deltatime, like '2025-11-30T12:00:00Z'.
         param str: stop, stop time of the deleted points, formation is the same as the `start` parameter.
-        param PredicateFilter: predicate, is a self-defined class that is to organize the filtering conditions, in which you are expected to initialize the class object
-        like `predicate = PredicateFilter(measurement:str|list='your-bucket',tag:dict={'locatioin':'New York'},field:str|list=['temperature','humulity']).
+        param PredicateFilter: predicate, is a self-defined class that is to organize the filtering conditions, 
+        in which you are expected to initialize the class object
+        like `predicate = PredicateFilter(measurement:str|list='your-bucket',tag:dict={'locatioin':'New York'},
+        field:str|list=['temperature','humulity']).
         '''
         if not predicate_filter:
             predicate = None
