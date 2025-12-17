@@ -52,15 +52,13 @@ class InfluxDBSDK(InfluxDBClient):
 
         super().__init__(url,token,org=org,**kwargs)
         # 初始化时自动校验
-        if self._validate_auth():
+        try:
+            self._validate_auth()
             logger_init.info("\u2713 客户端初始化成功 - [url: {}, org: {}]".format(url,org))
-        else:
+        except:
             logger_init.error("\u274C 客户端初始化失败 - [url: {}, org: {}]".format(url,org))
             raise InfluxDBError("Client initialization failed!")
 
-
-        
-        
 
 
     def _validate_auth(self):
@@ -90,8 +88,6 @@ class InfluxDBSDK(InfluxDBClient):
             self.close()
             raise RuntimeError(f"\u274C 网络请求错误：{str(e)}") from e
 
-        else:
-            return True
         
 
     @classmethod
@@ -100,15 +96,15 @@ class InfluxDBSDK(InfluxDBClient):
 
         with open(config_file, 'rb') as f:
             data = tomllib.load(f)
-        _client_config: Dict = data.get('influx2')
         
+        try:
+            _client_config: Dict = data['influx2']
+        except KeyError as e:
+            logger.error(f"default key is \"influx2\", please check your Config file:{config_file}.")
+            raise e
 
-        if not _client_config:
-            logger.error(f'default key is "influx2", please check your Config file:{config_file}.')
-            raise KeyError(f"default key is \"influx2\", please check your Config file:{config_file}.")
 
-
-        _url = _client_config.get('url')
+        _url = _client_config.pop('url')
 
         try:
             _token = _client_config.pop('token')
@@ -127,7 +123,7 @@ class InfluxDBSDK(InfluxDBClient):
                 # raise RuntimeError(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
         
 
-        return cls(url=_url,token=_token,debug=debug,enable_gzip=enable_gzip,**_client_config)
+        return cls(url=_url,token=t_token,debug=debug,enable_gzip=enable_gzip,**_client_config)
 
 
     

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from influxdb_client.rest import ApiException
 from src.influxdb import InfluxDBSDK
 from src.influxdb.models.flux_obj import AggregateWindow, Pivot, Filter
-from src.influxdb.modelds.flux_query import FluxQuery
+from src.influxdb.models.flux_query import FluxQuery
 from src.influxdb.exceptions import AuthenticationError, EssentialElementsMissingError, QueryError
 from src.influxdb.utils.yield_statements import (yield_measurements_statement,
                                                  yield_tag_key_statement,
@@ -38,7 +38,7 @@ class QuerySDK:
         query_client = self._sdk.query_api()
 
         if not flux_script:
-            flux_script = repr(query)
+            flux_script = str(query)
 
         print(f'flux script:\n{flux_script}')   # debug point
 
@@ -64,7 +64,7 @@ class QuerySDK:
         query_client = self._sdk.query_api()
 
         if not flux_script:
-            flux_script = repr(query)
+            flux_script = str(query)
         # print(flux_script)  # debug point
 
         if data_frame_index:
@@ -93,7 +93,7 @@ class QuerySDK:
 
         ## execute the querying of metadata
 
-        return self.query(flux_script=complete_statement, columns=context.get('columns',['_value']))  # result here is just Flux Talbe List
+        return self.query(flux_script=complete_statement, columns=context.get('columns',['_time','_value']))  # result here is just Flux Talbe List
 
 
 

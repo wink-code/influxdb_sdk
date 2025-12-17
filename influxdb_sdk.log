@@ -18,3 +18,7 @@ current username: admin, id: 0fdb6da0a09e4000
 2025-12-12 11:15:13,599 - src.influxdb - ERROR - ❌ 客户端初始化失败 - [url: http://influxdb-dev:8086, org: DFMC]
 2025-12-12 11:16:16,537 - src.influxdb - ERROR - ❌ 客户端初始化失败 - [url: http://influxdb-dev:8086, org: DFMC]
 2025-12-12 11:27:12,831 - src.influxdb - ERROR - ❌ 客户端初始化失败 - [url: http://influxdb-dev:8086, org: DFMC]
+2025-12-17 10:37:34,534 - influxdb - ERROR - ❌ 认证失败 - 状态码：401 响应：{"code":"unauthorized","message":"unauthorized access"}
+2025-12-17 10:42:44,849 - src.influxdb - ERROR - ❌ 认证失败 - 状态码：401 响应：{"code":"unauthorized","message":"unauthorized access"}
+2025-12-17 10:46:51,452 - influxdb - ERROR - ❌ 认证失败 - 状态码：401 响应：{"code":"unauthorized","message":"unauthorized access"}
+2025-12-17 10:57:32,644 - src.influxdb - ERROR - ❌ 认证失败 - 状态码：401 响应：{"code":"unauthorized","message":"unauthorized access"}
