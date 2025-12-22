@@ -3,11 +3,11 @@ from typing import Dict, List, Literal
 from pandas import DataFrame
 from dataclasses import dataclass
 from influxdb_client.rest import ApiException
-from src.influxdb import InfluxDBSDK
-from src.influxdb.models.flux_obj import AggregateWindow, Pivot, Filter
-from src.influxdb.models.flux_query import FluxQuery
-from src.influxdb.exceptions import AuthenticationError, EssentialElementsMissingError, QueryError
-from src.influxdb.utils.yield_statements import (yield_measurements_statement,
+from influxdb_client.client.query_api import QueryApi
+from influxdb.models.flux_obj import AggregateWindow, Pivot, Filter
+from influxdb.models.flux_query import FluxQuery
+from influxdb.exceptions import AuthenticationError, EssentialElementsMissingError, QueryError
+from influxdb.utils.yield_statements import (yield_measurements_statement,
                                                  yield_tag_key_statement,
                                                  yield_tag_value_statement,
                                                  yield_fields_statement)
@@ -18,8 +18,10 @@ class CompileError(QueryError):
     
 
 class QuerySDK:
-    def __init__(self, sdk:InfluxDBSDK):
-        self._sdk = sdk
+    '''Query SDK class for InfluxDB v2.x'''
+
+    def __init__(self, query_api: QueryApi):
+        self._query_api = query_api
 
     def query(self, 
             query: FluxQuery=None,
@@ -33,9 +35,9 @@ class QuerySDK:
             there are '["_time","_value","_field","_measurement"] and so on.
         :param `str`: flux_script = None, the flux script that has the priority beyond other parameters.
         :return `list`
-        '''     # to fill the doc string
+        '''
 
-        query_client = self._sdk.query_api()
+        query_client = self._query_api
 
         if not flux_script:
             flux_script = str(query)
@@ -61,7 +63,7 @@ class QuerySDK:
         param: `str`: flux_script, has the highest priority beyond other parameters.
         ''' 
 
-        query_client = self._sdk.query_api()
+        query_client = self._query_api
 
         if not flux_script:
             flux_script = str(query)

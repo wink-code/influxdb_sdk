@@ -1,74 +1,77 @@
-from typing import Optional,Dict
-import requests
-import tomllib
-import os
 import logging
-from logging import getLogger
-import dotenv
+
 from influxdb_client import InfluxDBClient
-from influxdb_client.rest import ApiException
-# from influxdb_client.client.write_api import PointSettings
-# from pandas import DataFrame
-# from src.influxdb.utils.chain import chain
+
+from influxdb.config import InfluxDBConfig
+from influxdb.query import QuerySDK
 from src.influxdb.exceptions import InfluxDBError, AuthenticationError, EssentialElementsMissingError
-from src.influxdb.models.flux_obj import DeletePredicateFilter
-from src.influxdb.utils.time_set import is_relative_time, get_relative_time, TimeZone
-
-# from influxdb_client.client.write_api import WriteOptions
-
-logging.basicConfig(level=logging.WARNING)
-logger = getLogger(__name__)
-handler = logging.FileHandler('influxdb_sdk.log',encoding='utf-8')
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger_init = logger.getChild("influxdb.__init__")
-init_handler = logging.StreamHandler()
-init_formatter = logging.Formatter('%(message)s')
-init_handler.setFormatter(init_formatter)
-logger_init.addHandler(init_handler)
-logger_init.setLevel(logging.INFO)
-logger_init.propagate = False
 
 
-__all__ = ["InfluxDBSDK"]
-class InfluxDBSDK(InfluxDBClient):
-    def __init__(
-            self,
-            url:str,
-            org:Optional[str],
-            token:str,
-            **kwargs
-            )->None:
-        """
-        :param url:str = 'http://influxdb-dev:8086' , the influxdb service host url
-        :param org:str = None, represent the org of the influxdb client
-        :param token:str = None, authorize to the influxdb client
-        """
-        logger_init.info("开始连接 InfluxDB 服务, 地址：{}".format(url))
-        if not all((url,token,org)):
-            logger.error(f"\u274C 客户端初始化失败 - url, token and org are required!")
-            raise ValueError("Token and url are required!")
 
-        super().__init__(url,token,org=org,**kwargs)
-        # 初始化时自动校验
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler('influxdb_sdk.log',encoding='utf-8')
+file_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', encoding='utf-8')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+logger.setLevel(logging.DEBUG)
+
+
+
+__all__ = ["InfluxDBClient", "InfluxDBConfig","InfluxDBCursor"]
+
+
+
+class InfluDBCursor:
+    ''' InfluxDB Cursor class '''
+
+    def __init__(self, config: InfluxDBConfig=None, **kwargs):
+        '''
+        :param config: InfluxDBConfig, the influxdb config client instance.
+        :param url:str, the influxdb service host url
+        :param org:str, represent the org of the influxdb client
+        :param token:str, authorize to the influxdb client
+        :param config_file: str, the config file path of influxdb client, default key is `influx2`.
+        '''
+        if config:
+            self._config = config._config
+        else:
+            self._config = InfluxDBConfig(**kwargs)
+
+        self.is_connected = False
+
+
+    def connect(self):
+        ''' connect to influxdb service, and validate the token. '''
+
+        logger.debug("尝试连接 InfluxDB 服务, 地址：%s", self.url)
+
+        self._client = InfluxDBClient(
+                           url=self._config.url,
+                           org=self._config.org,
+                           token=self._config.token,
+                           **self._config.kwargs
+                        )
+
+        # 这一步我的本意是验证 token 格式正确， 但是 如果采用这种方式， 虽然能证明格式正确， 但是会对token权限额外要求有user读取权限。我觉得重心不应该在token权限验证上。
         try:
             self._validate_auth()
-            logger_init.info("\u2713 客户端初始化成功 - [url: {}, org: {}]".format(url,org))
+            logger.info("\u2713 客户端初始化成功 - [url: %s, org: %s]", self.url,self.org)
         except:
-            logger_init.error("\u274C 客户端初始化失败 - [url: {}, org: {}]".format(url,org))
+            logger.error("\u274C 客户端初始化失败 - [url: %s, org: %s]", self.url,self.org)
             raise InfluxDBError("Client initialization failed!")
+        self.is_connected = True
 
 
 
     def _validate_auth(self):
         try:
-            me = self.users_api().me()
-            logger_init.info("\u2713 认证成功 - [current username: {}, id: {}]".format(me.name, me.id))
+            me = self._client.users_api().me()
+            logger.info("\u2713 认证成功 - [current username: %s, id: %s]", me.name, me.id)
             self.me = me
         except ApiException as e:
             self.close()
-            logger.error("\u274C 认证失败 - 状态码：{} 响应：{}".format(e.status, e.body))
+            logger.error("\u274C 认证失败 - 状态码：%s 响应：%s", e.status, e.body)
             if e.status == 401:
                 raise AuthenticationError(f"\u274C Token无效！响应：{e.body}") from e
             if e.status == 403:
@@ -88,94 +91,24 @@ class InfluxDBSDK(InfluxDBClient):
             self.close()
             raise RuntimeError(f"\u274C 网络请求错误：{str(e)}") from e
 
-        
-
-    @classmethod
-    def from_config_file(cls, config_file = "config.toml", 
-                debug=None, enable_gzip=False, **kwargs):
-
-        with open(config_file, 'rb') as f:
-            data = tomllib.load(f)
-        
-        try:
-            _client_config: Dict = data['influx2']
-        except KeyError as e:
-            logger.error(f"default key is \"influx2\", please check your Config file:{config_file}.")
-            raise e
-
-
-        _url = _client_config.pop('url')
-
-        try:
-            _token = _client_config.pop('token')
-        except:
-            logger.error("`token` missed in config file."
-            " Please check your Config file:{}.".format(config_file))
-            raise RuntimeError(f"`token` are required in config file."
-            " Please check your Config file:{config_file}.")
-
-        if _token.startswith('{env'):
-            dotenv.load_dotenv()
-            t_token = os.getenv(_token[5:-1],None)
-            logger_init.info("load token from environment variable:`{}`".format(_token[5:-1])) # 开发调试信息，上线可注释
-            if not t_token:
-                logger_init.error("environment variable `{}` not found in system, please check the variable config.".format(_token[5:-1]))
-                # raise RuntimeError(f"environment variable `{_token[5:-1]}` not found in system, please check the variable config.")
-        
-
-        return cls(url=_url,token=t_token,debug=debug,enable_gzip=enable_gzip,**_client_config)
-
-
+    def write(self, data, write_options=None):
+        ''' return the write api client '''
+        return self._client.write_api(write_options=write_options).write(data=data)
     
-    def query_sdk(self):
-        ''' return QuerySDK class object that support influx query. ''' 
-        from src.influxdb.query import QuerySDK
-        return QuerySDK(self)
-
-    def write_sdk(self,point_settings=None):
-        ''' return WriteSDK class that support influxdb write manipulations.''' 
-        from src.influxdb.write import WriteSDK
-        return WriteSDK(self,point_settings=point_settings)
-    
-    def delete(self, bucket:str, start:str, stop:str, predicate_filter: DeletePredicateFilter):
-        ''' 
-        Delete the points that satisfy the conditions of parameters.
-        param str: bucket, the bucket where points will be deleted.
-        param str: start, start time of the deleted points, formation could be relative deltatime, like '-1h', 
-        or absolute deltatime, like '2025-11-30T12:00:00Z'.
-        param str: stop, stop time of the deleted points, formation is the same as the `start` parameter.
-        param PredicateFilter: predicate, is a self-defined class that is to organize the filtering conditions, 
-        in which you are expected to initialize the class object
-        like `predicate = PredicateFilter(measurement:str|list='your-bucket',tag:dict={'locatioin':'New York'},
-        field:str|list=['temperature','humulity']).
-        '''
-        if not predicate_filter:
-            predicate = None
-        else:
-            predicate = repr(predicate_filter).replace('r.','')
-            print(predicate) # to delete, only test
-    
-        p_start = _process_relative_time(start)
-
-        p_stop = _process_relative_time(stop)
-
-        try:
-            super().delete_api().delete(bucket=bucket, start=p_start, stop=p_stop, predicate=predicate)
-         
-        except ApiException as e:
-            print(f"failed to delte:bucket:{bucket},start:{start},stop:{stop}"
-                                f"\n                {predicate}"
-                                f"\n                error:{str(e)}")
-        else:
-            print(f'NO Errors! [Action: delete]'
-                    f'\nstart:{start},stop:{stop}')
+    def query(self, mode: Literal['raw','dataframe']='dataframe',**kwargs):
+        ''' return the query sdk client '''
+        return QuerySDK(self._client.query_api())
 
 
 
 
-def _process_relative_time(r_time: str):
-    if is_relative_time(r_time):
-        abs_start = get_relative_time(r_time).astimezone(TimeZone.UTC.value)
-        return abs_start.strftime('%Y-%m-%dT%H:%M:%SZ')
-    return r_time
-
+if __name__ == "__main__":
+    import dotenv
+    dotenv.load_dotenv()
+    config = create_influxdb_client(
+        url="http://influxdb-dev:8086",
+        token="{env:INFLUXDB_TOKEN}",
+        org="DFMC"
+    )
+    ping = config().ping()
+    print(ping)
